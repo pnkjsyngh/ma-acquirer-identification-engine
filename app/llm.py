@@ -45,9 +45,8 @@ _opencode_client = None
 
 def _get_anthropic_client():
     # Shared across all concurrent acquirers -- a fresh client per call means a fresh
-    # connection pool per call under a 10-way asyncio.gather fan-out, which is exactly
-    # the "client re-instantiated on every call instead of injected" gap called out in
-    # this project's hiring-manager guidance for a past candidate.
+    # connection pool per call under a 10-way asyncio.gather fan-out. Reusing a single
+    # client avoids that overhead entirely.
     global _anthropic_client
     if _anthropic_client is None:
         import anthropic
