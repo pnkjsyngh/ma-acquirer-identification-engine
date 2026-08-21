@@ -23,8 +23,9 @@ output/
 .vscode/
 .idea/
 
-# Claude, plan, docs, etc.
+# Claude, plan, etc. (internal working files, not part of the submission)
 .claude/
 plan.md
 CLAUDE.md
-docs/
+
+private/
