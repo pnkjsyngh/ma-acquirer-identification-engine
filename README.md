@@ -87,14 +87,28 @@ tool use and no LLM-driven routing -- just a schema-constrained wrapper around o
   only National/Multi-Regional deals score lower, since the target didn't rule out any particular region.
 - Tier-1 signal weights (`sector_fit` 0.30 / `size_fit` 0.25 / `profile_fit` 0.20 / `recency` 0.10 /
   `outcome_quality` 0.10 / `tag_alignment` 0.05) and the eligibility threshold (3 relevant deals for full
-  confidence) are documented constants, chosen to be directionally sensible and checked against the
-  target-sensitivity results above, not the product of a formal weight-sensitivity sweep.
+  confidence) are documented constants, chosen to be directionally sensible and checked against both the
+  target-sensitivity results above and the weight-sensitivity sweep below -- not fitted to any objective.
 - "Relevant" deal = `sector_fit >= 0.35`; "adjacent" (widen-eligible) = `0.15 <= sector_fit < 0.35`.
 - Conviction is rank-derived: High = rank ≤3, Medium = 4-7, Low = ≥8 -- a deliberate choice so conviction
   varies across the 10 acquirers rather than clustering, per the assessment's "conviction levels should vary
   and be defensible" guidance.
 - `days_to_close` is null in ~19% of rows (only populated for `Closed` deals, which is structural, not a data
   quality bug) and isn't used by any ranking signal, so this doesn't affect scores.
+
+## Weight sensitivity
+
+Why 0.30 for `sector_fit` and not 0.35? Each weight in `app.features.WEIGHTS` was perturbed independently
+(deltas renormalized so all six still sum to 1.0) and re-run against the default target profile, measuring
+top-10 overlap with the unperturbed ranking:
+
+![Weight sensitivity: top-10 overlap vs. perturbation, per weight](docs/weight_sensitivity_overlap.png)
+
+`sector_fit` is the most sensitive weight (overlap drops to 6/10 at -0.30) -- makes sense, since it's the
+primary driver of which sector a deal even counts as relevant. `tag_alignment` is the most robust (stays at
+9-10/10 across the full range) since it's the smallest weight to begin with. Full 24-perturbation table with
+Spearman rank correlation: `docs/weight_sensitivity.md` (reproduce with `python scripts/weight_sensitivity.py`
+and `python scripts/plot_weight_sensitivity.py`).
 
 ## Known limitations
 
@@ -111,7 +125,8 @@ tool use and no LLM-driven routing -- just a schema-constrained wrapper around o
   Stage 1 already uses, but hasn't itself been run against a real opencode-go outage.
 - **No feedback loop, no web UI** (arbitrary profiles work via CLI flags already), **no MCP exposure** --
   scoped out to stay within the assessment's intended effort level.
-- **Weights are documented assumptions**, not fitted or swept (see Assumptions).
+- **Weights are documented assumptions, checked for sensitivity but not fitted** -- the sweep above shows how
+  robust the ranking is to each weight, not that 0.30/0.25/0.20/... is objectively optimal.
 
 ## Non-determinism handling
 
