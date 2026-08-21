@@ -40,61 +40,44 @@ Never commit `.env` -- it's gitignored. Copy `.env.example` to `.env` and fill i
 
 ## Architecture
 
+```mermaid
+flowchart LR
+    CSV[("ma_transactions_500\n.csv")] --> DATA[data.py] --> FEAT["features.py\nsector adjacency,\nper-deal fit"]
+    FEAT --> RANK["ranking.py\ntop 10 + dossiers\n(deterministic)"]
+    RANK --> S1
+
+    subgraph LLM["llm.py — per acquirer, all 10 concurrent"]
+        S1["Stage 1: Anthropic\ntool calls + routing\n+ reasoning"] -->|thin evidence?| W{widen to\nadjacent sector?}
+        W -->|yes| S1
+        W -->|no| S2["Stage 2: opencode-go\nbulk prose,\nno tools"]
+    end
+
+    S2 --> OUT["output.py\nvalidate (Pydantic)\n→ markdown/JSON"]
 ```
-data.py ──▶ features.py ──▶ ranking.py ──▶ llm.py ──▶ output.py
- (CSV)      (signals)      (top 10 +      (two-stage   (markdown/JSON)
-                           evidence)      LLM synthesis)
-```
 
-**Ranking (deterministic, no LLM).** A two-tier fit score: per-deal signals (sector adjacency, size distance,
-profile fit, recency, outcome quality, tag alignment) rolled up to an acquirer via a recency/outcome-weighted
-mean, then multiplied by a confidence dampener (`min(1, relevant_deals / 3)`) so a single lucky deal can't
-outrank a firm with a genuine track record. The ranking never touches an LLM -- it's fully reproducible and
-satisfies the "no hardcoded acquirer list" requirement, since the shortlist is derived from data every time,
-not asserted.
+**Ranking is deterministic, no LLM involved** -- a two-tier fit score (sector adjacency, size, profile, recency,
+outcome quality, tag alignment) rolled up per acquirer with a confidence dampener so one lucky deal can't
+outrank a real track record. Fully reproducible; the shortlist is derived from data every run, never hardcoded.
 
-**Sector adjacency is not a hand-tuned prior.** It's the cosine similarity of acquirer overlap between the
-target sector and a deal's sector -- "do the same buyers transact in both" -- computed from the sector×acquirer
-co-occurrence matrix, with an IDF-style downweight on acquirers active across many sectors. Without that
-downweight, generalist PE mega-funds active in 8-10 of the 10 sectors inflate similarity between *every* sector
-pair uniformly, making a Dental-only specialist look "relevant" to Pharma/Biotech. Verified target-sensitive:
-running all 10 synthetic profiles in `data/synthetic_profiles.json`, top-10 overlap with the Healthcare Services
-default ranges 0-5 acquirers out of 10 across sectors -- the ranking genuinely moves with the target rather than
-always surfacing the same PE funds. Acquirer-type mix (Strategic vs. Financial Sponsor) in the top 10 also
-varies realistically by sector (e.g. 8 Strategic / 2 Sponsor for Health IT vs. 2 Strategic / 8 Sponsor for
-Physician Groups) rather than sitting at a fixed ratio.
+**Sector adjacency is data-derived, not a hand-tuned prior** -- cosine similarity of acquirer overlap between
+sectors, with an IDF-style downweight so generalist PE mega-funds (active in 8-10 of 10 sectors) don't inflate
+every sector pair's similarity uniformly. Verified target-sensitive: top-10 overlap with the Healthcare Services
+default ranges 0-5/10 across the other 9 synthetic profiles, and acquirer-type mix (Strategic vs. Financial
+Sponsor) varies realistically by sector rather than sitting at a fixed ratio.
 
-**LLM synthesis is a two-stage, tool-calling pipeline, one call sequence per acquirer, all 10 acquirers run
-concurrently via `asyncio.gather`.**
+**LLM synthesis is a two-stage, tool-calling pipeline** (why not one prompt per acquirer? because that has no
+tool use and no LLM-driven routing -- just a schema-constrained wrapper around one call):
 
-- *Stage 1 (Anthropic)* -- the judgment-heavy part only. The model selects and calls tools with defined JSON
-  schemas (`get_precedent_deals`, `get_valuation_comps`, `get_rationale_tag_overlap`) to gather whatever
-  evidence it needs, via the Anthropic Messages API's native tool-use loop (no MCP -- this app owns both the
-  tools and the only client). When an acquirer's evidence is thin (`relevant_deals < 3`), the model decides
-  whether to call `widen_to_adjacent_sector` to pull supplementary deals from adjacent sectors -- this is the
-  one place the LLM's choice actually changes the code path; evidence-retrieval tools called unconditionally
-  every time don't count as real routing. Stage 1's output includes a mandatory `reasoning` field (a
-  scratchpad, not a one-shot stateless call) and is deliberately kept short and cheap, since Anthropic calls
-  are the expensive ones in this split.
-- *Stage 2 (opencode-go, `gpt-5.6-luna` by default)* -- bulk prose generation only. Takes Stage 1's finalized
-  dossier plus its reasoning trace as fully-prepared input and writes the six-section rationale into a
-  Pydantic-validated schema. Never calls tools, never re-decides anything Stage 1 already settled -- this is
-  where the actual token volume lives (six prose sections × 10 acquirers), so it's also where the cost savings
-  land by running on the cheaper model. `STAGE2_BACKEND=anthropic` is available as a fallback if opencode-go is
-  unreachable, using the same client Stage 1 already has open.
-- Output is validated against a `RationaleOutput` Pydantic model (`app/schemas.py`) with a repair/retry loop on
-  validation failure -- not `json.loads()` and hope. The ranking layer, not the LLM, sets each acquirer's
-  Conviction level (High/Medium/Low by rank); the LLM's job is to justify it with cited evidence, never override
-  it.
-
-**Why not one prompt per acquirer?** A single "here's everything, write the rationale" prompt has no tool use
-and no LLM-driven routing -- it's a schema-constrained wrapper around one model call, regardless of how good the
-prompt is. Splitting evidence-gathering (with real tool calls and a genuine conditional routing decision) from
-prose-writing is what makes this an agentic pipeline rather than a prompt template.
-
-**Why two providers?** Purely a cost decision. Anthropic calls are more expensive per token, so Stage 1 is kept
-short (a routing decision plus a brief reasoning trace) while the token-heavy prose generation runs on a cheaper
-model via opencode-go.
+- **Stage 1 (Anthropic)** selects and calls tools (`get_precedent_deals`, `get_valuation_comps`,
+  `get_rationale_tag_overlap`) via the Messages API's native tool-use loop to gather evidence, and -- when an
+  acquirer's evidence is thin -- decides whether to call `widen_to_adjacent_sector`. That decision is the one
+  place the LLM's choice actually changes the code path; tools called unconditionally every time don't count as
+  real routing. Output includes a mandatory `reasoning` field and stays short/cheap on purpose.
+- **Stage 2 (opencode-go, `gpt-5.6-luna`)** writes the six-section rationale from Stage 1's finalized dossier +
+  reasoning trace into a Pydantic-validated schema. No tools, no re-deciding anything -- just the bulk prose,
+  which is where the actual token cost lives, hence the cheaper model (`STAGE2_BACKEND=anthropic` as fallback).
+- Output validates against `RationaleOutput` (`app/schemas.py`) with a repair/retry loop on failure. The
+  ranking layer, not the LLM, sets Conviction (High/Medium/Low by rank) -- the LLM only justifies it.
 
 ## Assumptions
 
@@ -115,44 +98,32 @@ model via opencode-go.
 
 ## Known limitations
 
-- **Grounding is not machine-verified end-to-end.** A manual spot-check (Atrium Health, Healthcare Services
-  default profile) confirmed every precedent deal, multiple, and geographic count cited in the generated
-  rationale traces exactly to the CSV -- with one exception: a comps-range figure was cited as "9.3x-16.6x"
-  against an actual aggregate low of 9.2x, a 0.1 rounding slip rather than a fabrication. There's no automated
-  numeric-diff validator checking every cited figure against the source data on every run; this would be the
-  first thing to add with more time.
-- **Sector adjacency is a proxy, not a direct measure.** The co-occurrence-based cosine similarity reflects
-  which sectors share buyers, which is *related* to but not identical to strategic adjacency. The IDF downweight
-  sharpens this meaningfully but doesn't eliminate the approximation.
-- **Wikipedia enrichment covers 70 of 107 acquirers.** Coverage skews toward large PE sponsors and public
-  strategics; smaller regional health systems and niche RCM/home-health names more often have no dedicated
-  article. Handled gracefully (the Acquirer Overview and Risk Flags sections fall back to CSV-only content, no
-  crash) -- not a bug, but real name-collision risk was found and mitigated during development (a business-entity
-  filter plus a hard-coded exclusion list for one confirmed same-name mismatch), not eliminated entirely.
-- **`STAGE2_BACKEND=anthropic` (the opencode-go fallback) is implemented but not live-tested** -- the default
-  opencode-go path has been exercised extensively and works reliably; the fallback branch is straightforward
-  (same client, same call shape Stage 1 already uses) but hasn't itself been run against a real outage.
-- **No persistent feedback loop, no arbitrary-profile web UI** (the CLI already accepts `--sector`/
-  `--deal-size-mm`/`--geography` directly, so arbitrary profiles work, just not through a form), **no MCP tool
-  exposure** -- all considered and scoped out to stay within the assessment's intended effort level.
-- **Weights are documented assumptions, not fitted or swept.** See Assumptions above.
+- **Grounding isn't machine-verified end-to-end.** A manual spot-check (Atrium Health) confirmed every cited
+  deal, multiple, and geographic count traces exactly to the CSV, with one 0.1x rounding slip on an aggregate
+  range (9.3x cited vs. 9.2x actual) -- not a fabrication, but no automated numeric-diff validator checks every
+  figure on every run. First thing to add with more time.
+- **Sector adjacency is a proxy** (buyer co-occurrence), not a direct measure of strategic adjacency. The IDF
+  downweight sharpens it but doesn't eliminate the approximation.
+- **Wikipedia enrichment covers 70/107 acquirers**, skewed toward large PE sponsors and public strategics.
+  Missing acquirers fall back to CSV-only content, no crash. A business-entity filter plus one hard-coded
+  exclusion catch known name-collisions but don't eliminate the risk entirely.
+- **`STAGE2_BACKEND=anthropic` (opencode-go fallback) is implemented but not live-tested** -- same call shape
+  Stage 1 already uses, but hasn't itself been run against a real opencode-go outage.
+- **No feedback loop, no web UI** (arbitrary profiles work via CLI flags already), **no MCP exposure** --
+  scoped out to stay within the assessment's intended effort level.
+- **Weights are documented assumptions**, not fitted or swept (see Assumptions).
 
 ## Non-determinism handling
 
-- `temperature=0` on every LLM call (Stage 1 and Stage 2). Note: as of the current Anthropic SDK release,
-  `temperature` was deprecated as a first-class `messages.create()` parameter by the API itself -- passing it
-  directly now raises a `TypeError`. It's passed via `extra_body={"temperature": 0}` instead, which the SDK
-  merges directly into the request JSON; this was found and fixed via live testing against the real API, not
-  anticipated in advance.
-- The ranking layer is pure and deterministic (no randomness, seeded only by the CSV itself) -- the acquirer
-  list, order, and Conviction levels are always reproducible for a given target profile.
-- LLM prose still has residual run-to-run variance even at temperature 0 -- a property of the models themselves,
-  not something this codebase controls. `MOCK_LLM=1` substitutes fully deterministic canned output (built
-  directly from the same dossier the real LLM would see) for a zero-key demo and for exercising the full
-  pipeline -- including the conditional widen-to-adjacent-sector path -- deterministically in tests.
-- Every rationale is schema- and business-rule-validated on the way out (`app/output.py::validate_rationale`,
-  backed by the `RationaleOutput` Pydantic model) with one repair/retry attempt on failure before the run fails
-  loudly for that acquirer, rather than silently shipping malformed or boilerplate output.
+- `temperature=0` on every LLM call, passed via `extra_body` since the current Anthropic SDK deprecated it as
+  a direct `messages.create()` parameter.
+- The ranking layer is pure and deterministic -- acquirer list, order, and Conviction levels are always
+  reproducible for a given target profile.
+- LLM prose still has residual run-to-run variance at temperature 0 (a model property, not something this
+  codebase controls). `MOCK_LLM=1` substitutes deterministic canned output for a zero-key demo and for testing
+  the full pipeline -- including the conditional widen path -- deterministically.
+- Every rationale is validated on the way out (`RationaleOutput`, Pydantic) with one repair/retry attempt
+  before failing loudly for that acquirer, rather than silently shipping malformed output.
 
 ## Testing
 
