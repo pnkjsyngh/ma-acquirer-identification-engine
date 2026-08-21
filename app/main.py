@@ -107,10 +107,15 @@ def main() -> None:
     enrichment_cache = load_enrichment_cache()
 
     if args.all_profiles:
-        for profile in load_profiles():
-            asyncio.run(
-                run_profile(df, profile, enrichment_cache, args.top_n, args.output_dir, slug=profile["slug"])
-            )
+        # Single asyncio.run() for the whole sweep, not one per profile -- the shared
+        # LLM clients in app.llm are module-level singletons bound to whichever event
+        # loop created them, so a fresh asyncio.run() per profile broke the second
+        # profile onward with "RuntimeError: Event loop is closed" (confirmed live).
+        async def _run_all() -> None:
+            for profile in load_profiles():
+                await run_profile(df, profile, enrichment_cache, args.top_n, args.output_dir, slug=profile["slug"])
+
+        asyncio.run(_run_all())
         return
 
     target_profile = resolve_profile(args.profile, args.sector, args.deal_size_mm, args.geography)

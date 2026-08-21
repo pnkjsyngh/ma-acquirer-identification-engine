@@ -32,11 +32,37 @@ from app.prompts import (
 from app.schemas import Stage1Decision
 from app.tools import TOOL_SCHEMAS, execute_tool
 
-MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-5-20250929")
+MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-haiku-4-5-20251001")
 STAGE2_BACKEND = os.environ.get("STAGE2_BACKEND", "opencode-go")
-STAGE2_MODEL = os.environ.get("STAGE2_MODEL", "deepseek-v4-pro")
+STAGE2_MODEL = os.environ.get("STAGE2_MODEL", "gpt-5.6-luna")
 OPENCODE_BASE_URL = os.environ.get("OPENCODE_BASE_URL", "https://opencode.ai/zen/go/v1")
+STAGE2_MAX_TOKENS = int(os.environ.get("STAGE2_MAX_TOKENS", "3500"))
 MAX_TOOL_ITERATIONS = 6
+
+_anthropic_client = None
+_opencode_client = None
+
+
+def _get_anthropic_client():
+    # Shared across all concurrent acquirers -- a fresh client per call means a fresh
+    # connection pool per call under a 10-way asyncio.gather fan-out, which is exactly
+    # the "client re-instantiated on every call instead of injected" gap called out in
+    # this project's hiring-manager guidance for a past candidate.
+    global _anthropic_client
+    if _anthropic_client is None:
+        import anthropic
+
+        _anthropic_client = anthropic.AsyncAnthropic()
+    return _anthropic_client
+
+
+def _get_opencode_client():
+    global _opencode_client
+    if _opencode_client is None:
+        import httpx
+
+        _opencode_client = httpx.AsyncClient(timeout=120.0)
+    return _opencode_client
 
 
 class RationaleGenerationError(Exception):
@@ -94,7 +120,7 @@ async def _stage1_tool_loop(client, dossier: dict, target_profile: dict) -> tupl
         response = await client.messages.create(
             model=MODEL,
             max_tokens=700,
-            temperature=0,
+            extra_body={"temperature": 0},
             system=STAGE1_SYSTEM_PROMPT,
             tools=TOOL_SCHEMAS,
             messages=messages,
@@ -117,11 +143,23 @@ async def _stage1_tool_loop(client, dossier: dict, target_profile: dict) -> tupl
                 continue
             try:
                 result = execute_tool(block.name, block.input, dossier, target_profile)
-            except ValueError as e:
+            except (ValueError, TypeError) as e:
                 result = {"error": str(e)}
             tool_results.append(
                 {"type": "tool_result", "tool_use_id": block.id, "content": json.dumps(result, default=str)}
             )
+
+        if not tool_results:
+            # Defensive: confirmed live that stop_reason=="tool_use" can occur without
+            # a usable tool_use block surviving to this point. The API rejects an empty
+            # tool_result user turn with a 400 -- fall back instead of crashing this
+            # acquirer's entire rationale over one anomalous turn.
+            decision = Stage1Decision(
+                reasoning="[fallback] Stage 1 reported a tool call but produced no usable tool_use block",
+                used_widen=False,
+            )
+            return _apply_stage1_decision(dossier, decision)
+
         messages.append({"role": "user", "content": tool_results})
 
     decision = Stage1Decision(reasoning="[fallback] tool loop exceeded max iterations", used_widen=False)
@@ -133,10 +171,7 @@ async def stage1_gather_evidence(target_profile: dict, dossier: dict) -> tuple[d
     if os.environ.get("MOCK_LLM") == "1":
         return _mock_stage1(dossier)
 
-    import anthropic
-
-    client = anthropic.AsyncAnthropic()
-    return await _stage1_tool_loop(client, dossier, target_profile)
+    return await _stage1_tool_loop(_get_anthropic_client(), dossier, target_profile)
 
 
 _FALLBACK_RISKS = [
@@ -206,36 +241,82 @@ def _mock_stage2(
     }
 
 
+OPENCODE_MAX_RETRIES = 3
+
+
 async def _call_stage2_opencode(system: str, prompt: str) -> str:
+    # gpt-5.6-luna is the default (see STAGE2_MODEL). Both deepseek-v4-pro and
+    # deepseek-v4-flash are also available via opencode-go but are reasoning models
+    # with no documented way to cap/disable hidden reasoning -- confirmed live that
+    # deepseek-v4-pro burns 6000+ completion tokens on reasoning_content with zero
+    # actual answer, and deepseek-v4-flash produced ~10k reasoning tokens on one call,
+    # both a latency risk (10 concurrent calls, 60s hard budget) and wasted spend on
+    # tokens Stage 2 never reads (Stage 1 already did the reasoning). gpt-5.6-luna
+    # produces zero reasoning_content and converges well within a normal token budget.
+    #
+    # Retries with backoff on 5xx: confirmed live that opencode-go can return a
+    # transient 500 under concurrent load (10 acquirers fanned out at once) -- retrying
+    # here rather than only in the JSON-repair loop, since a 500 isn't a malformed
+    # response to repair, it's a request that never got a real answer.
+    import asyncio as _asyncio
+
     import httpx
 
     api_key = os.environ["OPENCODE_API_KEY"]
-    async with httpx.AsyncClient(timeout=60.0) as client:
-        response = await client.post(
-            f"{OPENCODE_BASE_URL}/chat/completions",
-            headers={"Authorization": f"Bearer {api_key}"},
-            json={
-                "model": STAGE2_MODEL,
-                "temperature": 0,
-                "max_tokens": 2000,
-                "messages": [
-                    {"role": "system", "content": system},
-                    {"role": "user", "content": prompt},
-                ],
-            },
-        )
-        response.raise_for_status()
-        return response.json()["choices"][0]["message"]["content"]
+    client = _get_opencode_client()
+    last_error: Exception | None = None
+    for attempt in range(OPENCODE_MAX_RETRIES):
+        try:
+            response = await client.post(
+                f"{OPENCODE_BASE_URL}/chat/completions",
+                headers={"Authorization": f"Bearer {api_key}"},
+                json={
+                    "model": STAGE2_MODEL,
+                    "temperature": 0,
+                    "max_tokens": STAGE2_MAX_TOKENS,
+                    "messages": [
+                        {"role": "system", "content": system},
+                        {"role": "user", "content": prompt},
+                    ],
+                },
+            )
+            response.raise_for_status()
+            data = response.json()
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code < 500 or attempt == OPENCODE_MAX_RETRIES - 1:
+                raise
+            last_error = e
+            await _asyncio.sleep(2**attempt)
+            continue
+        except (httpx.TimeoutException, httpx.TransportError) as e:
+            # Confirmed live: a slow/hung request can exceed the client timeout under
+            # concurrent load. Same retry treatment as a 5xx -- no response was ever
+            # received, nothing to repair.
+            if attempt == OPENCODE_MAX_RETRIES - 1:
+                raise
+            last_error = e
+            await _asyncio.sleep(2**attempt)
+            continue
+
+        choice = data["choices"][0]
+        content = choice["message"]["content"]
+        if not content and choice.get("finish_reason") == "length":
+            raise RationaleGenerationError(
+                "opencode-go response hit the token limit with empty content -- likely "
+                "spent the whole max_tokens budget on reasoning_content. Increase "
+                f"STAGE2_MAX_TOKENS (currently {STAGE2_MAX_TOKENS})."
+            )
+        return content
+
+    raise RationaleGenerationError(f"opencode-go returned repeated server errors: {last_error}")
 
 
 async def _call_stage2_anthropic(system: str, prompt: str) -> str:
-    import anthropic
-
-    client = anthropic.AsyncAnthropic()
+    client = _get_anthropic_client()
     response = await client.messages.create(
         model=MODEL,
         max_tokens=2000,
-        temperature=0,
+        extra_body={"temperature": 0},
         system=system,
         messages=[{"role": "user", "content": prompt}],
     )
