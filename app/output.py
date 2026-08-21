@@ -7,6 +7,9 @@ import re
 from pathlib import Path
 
 import pandas as pd
+from pydantic import ValidationError
+
+from app.schemas import RationaleOutput
 
 REQUIRED_SECTIONS = [
     "conviction",
@@ -20,40 +23,45 @@ REQUIRED_SECTIONS = [
 
 def validate_rationale(rationale: dict, expected_conviction: str) -> list[str]:
     """Returns a list of validation error strings (empty = valid). Never raises --
-    callers decide whether to surface a structured error or proceed with warnings."""
+    callers decide whether to surface a structured error or proceed with warnings.
+
+    Structural/type checks are backed by RationaleOutput (Pydantic); conviction-match
+    is checked directly against the raw dict since it's a business rule ("must equal
+    the deterministically-computed level") that a schema alone can't express.
+    """
     errors = []
     for section in REQUIRED_SECTIONS:
         if section not in rationale:
             errors.append(f"missing section: {section}")
 
-    if "conviction" in rationale:
-        level = rationale["conviction"].get("level")
+    conviction = rationale.get("conviction")
+    if isinstance(conviction, dict):
+        level = conviction.get("level")
         if level not in {"High", "Medium", "Low"}:
             errors.append(f"invalid conviction level: {level!r}")
         elif level != expected_conviction:
             errors.append(f"conviction mismatch: LLM returned {level!r}, expected {expected_conviction!r}")
 
-    if "risk_flags" in rationale:
-        if len(rationale["risk_flags"]) < 2:
-            errors.append(f"only {len(rationale['risk_flags'])} risk_flags, minimum 2 required")
-        for i, r in enumerate(rationale["risk_flags"]):
-            if "risk" not in r or "evidence" not in r:
-                errors.append(f"risk_flags[{i}] missing 'risk' or 'evidence' key: {sorted(r.keys())}")
-
-    for field in ("acquirer_overview", "strategic_fit_thesis"):
-        if field in rationale and not isinstance(rationale[field], str):
-            errors.append(f"{field} must be a plain string, got {type(rationale[field]).__name__}")
-
-    if "precedent_activity" in rationale:
-        for i, p in enumerate(rationale["precedent_activity"]):
-            missing = [k for k in ("year", "target", "sector", "deal_size_mm", "deal_type") if k not in p]
-            if missing:
-                errors.append(f"precedent_activity[{i}] missing keys {missing}: has {sorted(p.keys())}")
-
-    if "valuation_context" in rationale:
-        missing = [k for k in ("median_ev_ebitda", "median_ev_revenue") if k not in rationale["valuation_context"]]
-        if missing:
-            errors.append(f"valuation_context missing keys {missing}")
+    try:
+        RationaleOutput.model_validate(rationale)
+    except ValidationError as e:
+        already_reported = {msg.split(": ", 1)[1] for msg in errors if msg.startswith("missing section: ")}
+        for err in e.errors():
+            loc = ".".join(str(p) for p in err["loc"])
+            if err["type"] == "missing":
+                if loc in already_reported:
+                    continue
+                errors.append(f"missing field: {loc}")
+            elif loc == "risk_flags":
+                actual = len(rationale.get("risk_flags") or [])
+                errors.append(f"only {actual} risk_flags, minimum 2 required")
+            elif loc.startswith("risk_flags."):
+                idx = loc.split(".")[1]
+                errors.append(f"risk_flags[{idx}] invalid: {err['msg']}")
+            elif loc in ("acquirer_overview", "strategic_fit_thesis"):
+                errors.append(f"{loc} must be a plain string: {err['msg']}")
+            else:
+                errors.append(f"{loc}: {err['msg']}")
 
     return errors
 

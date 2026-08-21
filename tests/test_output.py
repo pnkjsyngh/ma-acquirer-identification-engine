@@ -6,10 +6,13 @@ import pytest
 os.environ["MOCK_LLM"] = "1"
 
 from app.data import load_transactions  # noqa: E402
+from app.evidence import compute_adjacent_candidates  # noqa: E402
+from app.features import ELIGIBILITY_DEAL_COUNT  # noqa: E402
 from app.llm import synthesize_rationale  # noqa: E402
 from app.output import render_acquirer_markdown, render_summary_markdown, validate_rationale  # noqa: E402
 from app.prompts import conviction_level_for_rank  # noqa: E402
 from app.ranking import build_dossier, rank_acquirers  # noqa: E402
+from app.schemas import RationaleOutput  # noqa: E402
 
 DEFAULT_PROFILE = {"sector": "Healthcare Services", "deal_size_mm": 200, "geography": None}
 
@@ -83,6 +86,49 @@ def test_render_acquirer_markdown_includes_all_sections(ranked_and_dossiers):
     md = render_acquirer_markdown(1, row, rationale)
     for heading in ["Conviction", "Acquirer Overview", "Strategic Fit Thesis", "Precedent Activity", "Valuation Context", "Risk Flags"]:
         assert heading in md
+
+
+def test_rationale_output_round_trips_valid_rationale():
+    rationale = {
+        "conviction": {"level": "High", "rationale": "x"},
+        "acquirer_overview": "x",
+        "strategic_fit_thesis": "x",
+        "precedent_activity": [],
+        "valuation_context": {},
+        "risk_flags": [{"risk": "a", "evidence": "b"}, {"risk": "c", "evidence": "d"}],
+    }
+    model = RationaleOutput.model_validate(rationale)
+    assert model.conviction.level == "High"
+    assert len(model.risk_flags) == 2
+
+
+def test_widen_path_actually_executes_for_thin_evidence_acquirer(df):
+    """Proves the conditional widen decision runs end-to-end under MOCK_LLM, not just
+    that the plumbing exists -- finds a real thin-evidence acquirer with adjacent
+    candidates and asserts the mock rationale reflects a widen decision."""
+    ranked, deal_fit_df = rank_acquirers(df, DEFAULT_PROFILE, top_n=len(df["acquirer"].unique()))
+
+    target_row = None
+    adjacent = None
+    for _, row in ranked.iterrows():
+        if row["relevant_deals"] >= ELIGIBILITY_DEAL_COUNT:
+            continue
+        candidates = compute_adjacent_candidates(deal_fit_df, row["acquirer"], DEFAULT_PROFILE)
+        if candidates:
+            target_row, adjacent = row, candidates
+            break
+
+    if target_row is None:
+        pytest.skip("no thin-evidence acquirer with adjacent candidates in this dataset/profile")
+
+    dossier = build_dossier(deal_fit_df, target_row["acquirer"], DEFAULT_PROFILE)
+    dossier["thin_evidence"] = True
+    dossier["adjacent_candidate_deals"] = adjacent
+
+    rationale = asyncio.run(synthesize_rationale(DEFAULT_PROFILE, dossier, "Low", []))
+    errors = validate_rationale(rationale, "Low")
+    assert errors == []
+    assert "widened into adjacent" in rationale["strategic_fit_thesis"]
 
 
 def test_render_summary_markdown_lists_all_acquirers(ranked_and_dossiers):
