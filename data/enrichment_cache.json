@@ -1,0 +1,632 @@
+{
+  "AbbVie": {
+    "facts": [
+      {
+        "text": "AbbVie Inc., also known as AbbVie, is an American pharmaceutical company headquartered in North Chicago, Illinois. AbbVie produces drugs to treat a wide range of medical issues.",
+        "source_url": "https://en.wikipedia.org/wiki/AbbVie",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "Acadia Healthcare": {
+    "facts": [
+      {
+        "text": "Acadia Healthcare Company, Inc. is an American provider of for-profit behavioral healthcare services. It operates a network of over 225 facilities across the United States and Puerto Rico.",
+        "source_url": "https://en.wikipedia.org/wiki/Acadia_Healthcare",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "AdvancedMD": {
+    "facts": [
+      {
+        "text": "AdvancedMD is a cloud-based software-as-a-service (SaaS) company that provides practice management, medical billing, and electronic health record (EHR) solutions to independent medical practices in the United States. Based in South Jordan, Utah, it was acquired by Global Payments in 2018 for $700 million, and in late 2024 it was sold to the private equity firm Francisco Partners for approximately $1.1 billion.",
+        "source_url": "https://en.wikipedia.org/wiki/AdvancedMD",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "Advent International": {
+    "facts": [
+      {
+        "text": "Advent International Corporation is an American private equity firm. It specializes in buyouts of companies based in Europe, North America, Latin America, and Asia. The firm had approximately $100 billion in assets under management as of November 2025.",
+        "source_url": "https://en.wikipedia.org/wiki/Advent_International",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "Advocate Health": {
+    "facts": [
+      {
+        "text": "Advocate Health, Inc. is a nonprofit hospital network headquartered in Charlotte, North Carolina, it was created when Advocate Aurora Health and Atrium Health merged their operations on December 2, 2022. It operates facilities in 6 states in the United States.",
+        "source_url": "https://en.wikipedia.org/wiki/Advocate_Health",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "Amgen": {
+    "facts": [
+      {
+        "text": "Amgen Inc. is an American multinational biopharmaceutical company headquartered in Thousand Oaks, California. The company is ranked 18th on the list of largest biomedical companies by revenue. The name \"AMGen\" is a portmanteau of the company's original name, Applied Molecular Genetics.",
+        "source_url": "https://en.wikipedia.org/wiki/Amgen",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "GTCR": {
+    "facts": [
+      {
+        "text": "GTCR LLC is an American private equity firm focused on leveraged buyout, leveraged recapitalization, growth capital, and rollup transactions. The firm principally invests in high-growth industries, including financial services and technology, healthcare, information services and technology, and growth business services.",
+        "source_url": "https://en.wikipedia.org/wiki/GTCR",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "New Mountain Capital": {
+    "facts": [
+      {
+        "text": "New Mountain Capital is an American alternative investment firm headquartered in New York City. The firm focuses on growth investing in mid-sized companies from economically acyclical industries.",
+        "source_url": "https://en.wikipedia.org/wiki/New_Mountain_Capital",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "Novartis": {
+    "facts": [
+      {
+        "text": "Novartis AG is a Swiss multinational pharmaceutical corporation based in Basel, Switzerland. Novartis is one of the largest pharmaceutical companies in the world and was the eighth largest by revenue in 2024.",
+        "source_url": "https://en.wikipedia.org/wiki/Novartis",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "Pfizer": {
+    "facts": [
+      {
+        "text": "Pfizer Inc. is an American multinational pharmaceutical and biotechnology corporation headquartered at The Spiral in Manhattan, New York City. Founded in 1849 in New York by German entrepreneurs Charles Pfizer and Charles F. Erhart, Pfizer is one of the oldest pharmaceutical companies in North America.",
+        "source_url": "https://en.wikipedia.org/wiki/Pfizer",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "Universal Health Services": {
+    "facts": [
+      {
+        "text": "Universal Health Services, Inc. (UHS) is an American Fortune 500 company that provides hospital and healthcare services, based in King of Prussia, Pennsylvania. In 2024, UHS reported total revenues of $15.8 billion.",
+        "source_url": "https://en.wikipedia.org/wiki/Universal_Health_Services",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "Veeva Systems": {
+    "facts": [
+      {
+        "text": "Veeva Systems Inc., headquartered in Pleasanton, California, provides cloud computing software, data, and consulting services for the life sciences industry. Its products are used to track all aspects of drug development and pharmaceutical manufacturing.",
+        "source_url": "https://en.wikipedia.org/wiki/Veeva_Systems",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "Align Technology": {
+    "facts": [
+      {
+        "text": "Align Technology, Inc. is an American manufacturer of 3D digital scanners and Invisalign clear aligners used in orthodontics and restorative workflow. It was founded in 1997 and is headquartered in Tempe, Arizona. The company manufactures the aligners in Juarez, Mexico, and its scanners in Israel and China. The company is best known for its Invisalign system, which is a clear aligner treatment used to straighten teeth.",
+        "source_url": "https://en.wikipedia.org/wiki/Align_Technology",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "Amedisys": {
+    "facts": [
+      {
+        "text": "Amedisys, Inc. is an American healthcare company based in Baton Rouge, Louisiana. They are one of the largest home health providers and second largest hospice care provider in the United States.",
+        "source_url": "https://en.wikipedia.org/wiki/Amedisys",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "Ardent Health Services": {
+    "facts": [
+      {
+        "text": "Ardent Health, Inc., formerly known as Behavioral Healthcare Corporation is a for-profit healthcare company based in Brentwood, Tennessee, United States.",
+        "source_url": "https://en.wikipedia.org/wiki/Ardent_Health",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "Ascension Health": {
+    "facts": [
+      {
+        "text": "Ascension is a large private Catholic healthcare system in the United States. Ascension had 142,000 employees, 90 hospitals, and 40 senior living facilities operating in 17 states and the District of Columbia as of July 1, 2025. Ascension is one of the largest nonprofit and one of the largest Catholic health systems in the United States. It also operates a number of for-profit firms, including subsidiaries involved in private equity, venture capital, insurance, medical software, and pharmacy delivery.",
+        "source_url": "https://en.wikipedia.org/wiki/Ascension_(healthcare_system)",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "Aspen Dental (ADMI)": {
+    "facts": [
+      {
+        "text": "Aspen Dental Management, Inc., commonly referred to as Aspen Dental, is an American dental support organization that supports Aspen Dental-branded dentistry locations. Its headquarters is in Chicago, Illinois.",
+        "source_url": "https://en.wikipedia.org/wiki/Aspen_Dental",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "Atrium Health": {
+    "facts": [
+      {
+        "text": "Charlotte-Mecklenburg Hospital Authority is a hospital network in the southern United States. The parent corporation, also named Atrium Health, merged with Advocate Aurora Health creating Advocate Health in December 2022. It operates 40 hospitals, 9 freestanding emergency departments, over 30 urgent care centers, and more than 1,400 care locations in the American states of North Carolina, South Carolina, Georgia, and Alabama. It provides care under the Atrium Health Wake Forest Baptist name in the Winston-Salem, North Carolina, region, Atrium Health Navicent in the Macon, Georgia area, and Atrium Health Floyd in the Rome, Georgia area. Atrium Health offers pediatric, cancer, and heart care, as well as organ transplants, burn treatments and specialized musculoskeletal programs.",
+        "source_url": "https://en.wikipedia.org/wiki/Atrium_Health",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "Bain Capital": {
+    "facts": [
+      {
+        "text": "Bain Capital, LP is an American private investment firm based in Boston, Massachusetts, with around $185 billion of assets under management. It specializes in private equity, venture capital, credit, public equity, impact investing, life sciences, crypto, tech opportunities, partnership opportunities, special situations, and real estate. Bain Capital invests across a range of industry sectors and geographic regions. The firm was founded in 1984 by partners from the consulting firm Bain & Company. The company is headquartered at 200 Clarendon Street in Boston with 24 offices in North America, Europe, Asia, and Australia.",
+        "source_url": "https://en.wikipedia.org/wiki/Bain_Capital",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "BetterHelp": {
+    "facts": [
+      {
+        "text": "BetterHelp is a mental health platform that provides direct online counseling and therapy services via web or phone text communication. BetterHelp was founded in 2013 by Alon Matas and Danny Bragonier, and acquired by Teladoc in 2015, maintaining its service and brand name post-acquisition.",
+        "source_url": "https://en.wikipedia.org/wiki/BetterHelp",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "Biogen": {
+    "facts": [
+      {
+        "text": "Biogen Inc. is an American multinational biotechnology company based in Cambridge, Massachusetts, United States specializing in the treatment of neurological diseases. The company's primary products are dimethyl fumarate (Tecfidera), diroximel fumarate (Vumerity), interferon beta-1a (AVONEX), peginterferon beta-1a (Plegridy), and natalizumab (Tysabri), all for the treatment of multiple sclerosis ; nusinersen (Spinraza) for the treatment of spinal muscular atrophy ; omaveloxolone (Skyclarys) for the treatment of Friedreich's ataxia ; tofersen (Qalsody) for the treatment of ALS; and dimethyl fumarate (Fumaderm) for the treatment of severe plaque psoriasis. The company also produces 5 biosimilars and has collaborations with Genentech for several drugs.",
+        "source_url": "https://en.wikipedia.org/wiki/Biogen",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "Blackstone": {
+    "facts": [
+      {
+        "text": "Blackstone Inc. is an American alternative investment management company based in New York City. It was founded in 1985 as a mergers and acquisitions firm by Peter Peterson and Stephen Schwarzman, who had previously worked together at Lehman Brothers. Blackstone's private equity business has been one of the largest investors in leveraged buyouts in the last three decades, while its real estate business has actively acquired commercial real estate across the globe. Blackstone is also active in credit, infrastructure, hedge funds, secondaries, growth equity, and insurance solutions. As of September 2025, Blackstone had $1.2 trillion in total assets under management, making it the world's largest alternative investment firm.",
+        "source_url": "https://en.wikipedia.org/wiki/Blackstone_Inc.",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "Bon Secours Mercy Health": {
+    "facts": [
+      {
+        "text": "Bon Secours Mercy Health is an international non-profit health care company with facilities and services in the United States, Ireland, the Philippines, Haiti, Peru and South Sudan. Headquartered in Cincinnati, Ohio, United States,\u00a0it is the fifth largest Catholic health system in the United States and one of the country's 20 largest health systems. Bon Secours Mercy Health includes 51 hospitals and more than 1,200 sites of care. It is the largest private health care provider in Ireland.",
+        "source_url": "https://en.wikipedia.org/wiki/Bon_Secours_Mercy_Health",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "Boston Scientific": {
+    "facts": [
+      {
+        "text": "Boston Scientific Corporation (BSC) is an American biotechnology and biomedical engineering firm and multinational manufacturer of medical devices used in interventional medical specialties, including interventional radiology, interventional cardiology, peripheral interventions, neuromodulation, neurovascular intervention, electrophysiology, cardiac surgery, vascular surgery, endoscopy, oncology, urology and gynecology.",
+        "source_url": "https://en.wikipedia.org/wiki/Boston_Scientific",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "Bright Health": {
+    "facts": [
+      {
+        "text": "Bright Health Group, Inc. is an American health insurance company based in Minneapolis, Minnesota.",
+        "source_url": "https://en.wikipedia.org/wiki/Bright_Health",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "Bristol-Myers Squibb": {
+    "facts": [
+      {
+        "text": "Bristol-Myers Squibb Company, doing business as Bristol Myers Squibb, is an American multinational pharmaceutical company headquartered in Princeton, New Jersey. The company's primary products are apixaban (Eliquis) for people with atrial fibrillation ; nivolumab (Opdivo), used to treat certain types of cancer ; lenalidomide (Revlimid), used to treat multiple myeloma, smoldering myeloma, and myelodysplastic syndromes ; abatacept (Orencia), used to treat autoimmune diseases such as rheumatoid arthritis ; pomalidomide (Pomalyst/Imnovid), an anti-cancer medication used for the treatment of multiple myeloma and AIDS-related Kaposi sarcoma ; ipilimumab (Yervoy), to treat cancer ; and luspatercept (Reblozyl) for the treatment of anemia in beta thalassemia and myelodysplastic syndromes. In 2025, 69% of the company's revenues came from the United States.",
+        "source_url": "https://en.wikipedia.org/wiki/Bristol_Myers_Squibb",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "CHRISTUS Health": {
+    "facts": [
+      {
+        "text": "Christus Health is an international Catholic nonprofit health system based in Irving, Texas, United States.",
+        "source_url": "https://en.wikipedia.org/wiki/Christus_Health",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "Centene": {
+    "facts": [
+      {
+        "text": "Centene Corporation is an American for-profit healthcare company that serves as an intermediary for government-sponsored and privately insured healthcare programs. Based in Clayton, Missouri, Centene ranked No. 23 on the 2025 Fortune 500.",
+        "source_url": "https://en.wikipedia.org/wiki/Centene_Corporation",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "Change Healthcare": {
+    "facts": [
+      {
+        "text": "Change Healthcare Inc. is a healthcare technology company that provides revenue cycle management and payment processing services for healthcare providers and insurers in the United States. The business was acquired by Optum in a $13 billion deal in 2022, in an effort to combine their service operations with the aforementioned technologies that Change Healthcare Inc. headlines. Optum is a subsidiary of the UnitedHealth Group.",
+        "source_url": "https://en.wikipedia.org/wiki/Change_Healthcare",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "Clover Health": {
+    "facts": [
+      {
+        "text": "Clover Health Investments, Corp. is an American health care company founded in 2014. The company provides Medicare Advantage (MA) insurance plans and operates as a direct contracting entity with the U.S. government. The company manages care for Medicare beneficiaries in 11 states and started trading publicly on January 8, 2021.",
+        "source_url": "https://en.wikipedia.org/wiki/Clover_Health",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "Definitive Healthcare": {
+    "facts": [
+      {
+        "text": "Definitive Healthcare, Corp. is a publicly traded healthcare data and analytics company headquartered in Framingham, Massachusetts, United States. The company operates subscription-based products and solutions with data on healthcare organizations, providers, services, medical and scientific experts, claims, and consumers.",
+        "source_url": "https://en.wikipedia.org/wiki/Definitive_Healthcare",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "Edwards Lifesciences": {
+    "facts": [
+      {
+        "text": "Edwards Lifesciences Corporation is an American medical technology company headquartered in Irvine, California, specializing in tissue heart valves and transcatheter technologies for the treatment of structural heart disease. The company has manufacturing facilities at the Irvine headquarters, as well as in Draper, Utah; Costa Rica; Singapore; and Limerick, Ireland. The company is also constructing a manufacturing plant in Moncada, near Valencia, Spain, with a \u20ac150 million investment. Production is scheduled to begin in 2027.",
+        "source_url": "https://en.wikipedia.org/wiki/Edwards_Lifesciences",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "Elevance Health": {
+    "facts": [
+      {
+        "text": "Elevance Health, Inc. is an American health insurance company. Prior to June 2022, Elevance Health was named Anthem, Inc. The company is the world's seventh largest healthcare company based on revenue. Its services include medical, pharmaceutical, dental, behavioral health, long-term care, and disability plans through affiliated companies such as Anthem Blue Cross and Blue Shield, Anthem Blue Cross in California, Wellpoint, and Carelon. It is the largest for-profit managed health care company in the Blue Cross Blue Shield Association. As of 2022, the company had 46.8 million members within its affiliated companies' health plans.",
+        "source_url": "https://en.wikipedia.org/wiki/Elevance_Health",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "Enhabit": {
+    "facts": [
+      {
+        "text": "Enhabit, Inc., is a Dallas, Texas-based provider of home health and hospice services. The company operates 255 home health and 110 hospice locations in 34 states with a concentration in Texas, Alabama, Florida, Georgia, Oklahoma and Mississippi. Enhabit is the fourth-largest provider of home health services in the United States and is a leading provider of hospice services. The company was formed in 2022 when Encompass Health spun off its home health and hospice business.",
+        "source_url": "https://en.wikipedia.org/wiki/Enhabit",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "Epic Systems": {
+    "facts": [
+      {
+        "text": "Epic Systems Corporation is an American privately held healthcare software company based in Verona, Wisconsin. Founded in 1979, it develops large-scale software systems for electronic health records. It is the largest electronic health records vendor by market share. According to the company, more than 325 million patients have an electronic record in Epic.",
+        "source_url": "https://en.wikipedia.org/wiki/Epic_Systems",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "Francisco Partners": {
+    "facts": [
+      {
+        "text": "Francisco Partners Management, L.P., doing business as Francisco Partners, is an American private equity firm focused on investments in technology and technology-enabled services businesses. It was founded in 1999 and is headquartered in San Francisco, with offices in London and New York City.",
+        "source_url": "https://en.wikipedia.org/wiki/Francisco_Partners",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "General Atlantic": {
+    "facts": [
+      {
+        "text": "General Atlantic Service Company, L.P., also known as GA, is an American growth equity firm providing capital and strategic support for global growth companies, headquartered in New York City. The firm was founded in 1980 as the captive investment team for Atlantic Philanthropies, a philanthropic organization founded by Charles F. Feeney, the billionaire co-founder of Duty Free Shoppers Ltd.",
+        "source_url": "https://en.wikipedia.org/wiki/General_Atlantic",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "Gilead Sciences": {
+    "facts": [
+      {
+        "text": "Gilead Sciences, Inc. is an American biopharmaceutical company headquartered in Foster City, California, that focuses on researching and developing antiviral drugs used in the treatment of HIV/AIDS, hepatitis B, hepatitis C, influenza, and COVID-19. It also develops medicines in therapeutic areas such as oncology and inflammation and cell therapy.",
+        "source_url": "https://en.wikipedia.org/wiki/Gilead_Sciences",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "Greenway Health": {
+    "facts": [
+      {
+        "text": "Greenway Health, LLC is a privately owned American company that develops electronic health record (EHR), practice management, and revenue cycle management software for ambulatory healthcare practices. The company is headquartered in Tampa, Florida, with additional offices in Bangalore, India. The company's product line includes the cloud-based Intergy and PrimeSUITE electronic health records and practice management systems for ambulatory practices, alongside revenue cycle management and patient engagement services. The company has offices in Tampa, Florida and Bangalore, India.",
+        "source_url": "https://en.wikipedia.org/wiki/Greenway_Health",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "HCA Healthcare": {
+    "facts": [
+      {
+        "text": "HCA Healthcare, Inc. is an American global for-profit operator of health care facilities that was founded in 1968. It is based in Nashville, Tennessee, and, as of May 2020, owned and operated 186 hospitals and approximately 2,400 sites of care, including surgery centers, freestanding emergency rooms, urgent care centers and physician clinics in 20 states and the United Kingdom. As of 2024, HCA Healthcare is ranked #61 on the Fortune 500 rankings of the largest United States corporations by total revenue. In the 1990s, the company engaged in illegal accounting and other crimes that resulted in the payment of more than $2 billion in federal fines and other penalties, and the dismissal of the CEO Rick Scott by the board of directors.",
+        "source_url": "https://en.wikipedia.org/wiki/HCA_Healthcare",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "Hologic": {
+    "facts": [
+      {
+        "text": "Hologic, Inc. is an American medical technology company primarily focused on women's health; it sells medical devices for diagnostics, surgery, and medical imaging.",
+        "source_url": "https://en.wikipedia.org/wiki/Hologic",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "Integra LifeSciences": {
+    "facts": [
+      {
+        "text": "Integra LifeSciences Holdings Corporation is a global medical device manufacturing company headquartered in Princeton, New Jersey. Founded in 1989, the company manufactures products for skin regeneration, neurosurgery, reconstructive and general surgery. Integra artificial skin became the first commercially reproducible skin tissue used to treat severe burns and other skin wounds.",
+        "source_url": "https://en.wikipedia.org/wiki/Integra_LifeSciences",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "Intermountain Health": {
+    "facts": [
+      {
+        "text": "Intermountain Health is a United States not-for-profit healthcare system with 385 clinics and 33 hospitals in the Intermountain West. The company's headquarters are in Salt Lake City, Utah. Colorado-based SCL Health and Intermountain Health merged in 2022. The combined system employs more than 64,000 people.",
+        "source_url": "https://en.wikipedia.org/wiki/Intermountain_Health",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "Intuitive Surgical": {
+    "facts": [
+      {
+        "text": "Intuitive Surgical, Inc. is an American biotechnology company that develops, manufactures, and markets robotic products designed to improve clinical outcomes of patients through minimally invasive surgery, most notably with the da Vinci Surgical System. The company is part of the Nasdaq-100, S&P 100 and S&P 500. As of 31\u00a0December\u00a02021, Intuitive Surgical had an installed base of 6,730 da Vinci Surgical Systems, including 4,139 in the U.S., 1,199 in Europe, 1,050 in Asia, and 342 in the rest of the world.",
+        "source_url": "https://en.wikipedia.org/wiki/Intuitive_Surgical",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "KKR": {
+    "facts": [
+      {
+        "text": "KKR & Co. Inc., also known as Kohlberg Kravis Roberts & Co., is an American investment firm that serves institutional investors, wealth investors, family offices, and companies across a variety of industries and markets. KKR operates across three business areas: asset management, insurance and Strategic Holdings. As of March 31, 2026, KKR had assets under management (AUM) of approximately $758 billion, making it one of the world's largest alternative asset management firms.",
+        "source_url": "https://en.wikipedia.org/wiki/KKR_%26_Co.",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "Mass General Brigham": {
+    "facts": [
+      {
+        "text": "Mass General Brigham Inc. is a not-for-profit, integrated health system based in Greater Boston. It operates two academic medical centers\u2014Massachusetts General Hospital and Brigham and Women's Hospital\u2014along with specialty and community hospitals, home care, urgent care, and a licensed health plan serving Massachusetts and southern New Hampshire. The system is a principal teaching affiliate of Harvard Medical School. In November 2019, Partners announced a five-year strategy and said it would rebrand as Mass General Brigham to present a unified identity across the system.",
+        "source_url": "https://en.wikipedia.org/wiki/Mass_General_Brigham",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "McKesson": {
+    "facts": [
+      {
+        "text": "McKesson Corporation is an American publicly traded company that distributes pharmaceuticals and provides health information technology, medical supplies, and health management tools. The company delivers a third of all pharmaceutical products used or consumed in North America and employs over 80,000 employees. With $308.9 billion in 2024 revenue, it is the ninth-largest company by revenue in the United States and the nation's largest health care company. The company is headquartered in Irving, Texas. It is a component of the S&P 500 and is listed on the New York Stock Exchange, where it is traded under the ticker symbol \"MCK\".",
+        "source_url": "https://en.wikipedia.org/wiki/McKesson_Corporation",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "Medtronic": {
+    "facts": [
+      {
+        "text": "Medtronic plc is an American-Irish medical device company. The company's legal and executive headquarters are in Ireland, while its operational headquarters are in Minneapolis, Minnesota. Medtronic rebased to Ireland following its acquisition of Irish-based Covidien in 2015. While it primarily operates in the United States, it operates in more than 150 countries and employs over 90,000 people. It develops and manufactures healthcare technologies and therapies. It is one of the biggest medical tech companies in the world and is currently the largest medical device company in the world by revenue.",
+        "source_url": "https://en.wikipedia.org/wiki/Medtronic",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "Netsmart Technologies": {
+    "facts": [
+      {
+        "text": "Netsmart Technologies is an American health information technology company that develops electronic health records, interoperability, revenue cycle management, artificial intelligence, automation, telehealth and related software and services. Through its CareFabric platform, the company supports organizations and entities in the human services, post-acute, public sector, physical therapy and rehabilitation markets with an integrated framework designed for community-based care providers.",
+        "source_url": "https://en.wikipedia.org/wiki/Netsmart_Technologies",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "Nordic Capital": {
+    "facts": [
+      {
+        "text": "Nordic Capital is a global, sector-specialist private equity firm focused on leveraged buyouts of established companies in Northern Europe and North America.",
+        "source_url": "https://en.wikipedia.org/wiki/Nordic_Capital",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "Oscar Health": {
+    "facts": [
+      {
+        "text": "Oscar Management Corporation, doing business as Oscar Health is an American for-profit health insurance company, founded in 2012 by Joshua Kushner, Kevin Nazemi and Mario Schlosser, and is headquartered in New York City. The company sells health insurance and additionally provides other services in the health insurance industry through telemedicine, healthcare focused technological interfaces, and transparent claims pricing systems.",
+        "source_url": "https://en.wikipedia.org/wiki/Oscar_Health",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "Pacific Dental Services": {
+    "facts": [
+      {
+        "text": "Pacific Dental Services (PDS) is a dental support organization (DSO) that provides business and administrative services for dental offices in the United States. It is headquartered in Irvine, California.",
+        "source_url": "https://en.wikipedia.org/wiki/Pacific_Dental_Services",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "Phreesia": {
+    "facts": [
+      {
+        "text": "Phreesia, Inc. is a software as a service company that offers healthcare organizations a set of applications to automate and manage patient intake.",
+        "source_url": "https://en.wikipedia.org/wiki/Phreesia",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "R1 RCM": {
+    "facts": [
+      {
+        "text": "R1 RCM Inc. is an American 'revenue cycle management' company servicing hospitals, health systems and physician groups across the United States. In November 2024, TowerBrook Capital Partners and Clayton, Dubilier & Rice completed the purchase of R1, in a deal that valued the company at $8.9 billion.",
+        "source_url": "https://en.wikipedia.org/wiki/R1_RCM",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "Sanofi": {
+    "facts": [
+      {
+        "text": "Sanofi S.A. is a French multinational pharmaceutical and healthcare company headquartered in Paris. The corporation was established in 1973 and merged with Synth\u00e9labo in 1999 to form Sanofi-Synth\u00e9labo. In 2004, Sanofi-Synth\u00e9labo merged with Aventis and renamed to Sanofi-Aventis, which were each the product of several previous mergers. It changed its name back to Sanofi in May 2011. The company trades as \"SAN\" on Euronext Paris and \"SNY\" on Nasdaq in the United States, and is a component of the Euro Stoxx 50 stock market index. In 2023, the company was ranked 89th in the Forbes Global 2000.",
+        "source_url": "https://en.wikipedia.org/wiki/Sanofi",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "Steward Health Care": {
+    "facts": [
+      {
+        "text": "Steward Health Care was a large private for-profit health system headquartered in Dallas, Texas. It utilized an integrated care model to deliver healthcare across its hospitals and primary care locations, as well as through its managed care and health insurance services. At the start of 2024, Steward operated 33 hospitals and employed 33,000 people in the United States, however that number decreased significantly due to the company's May 2024 bankruptcy filing. Steward's international ventures included Steward Colombia, which operates four hospitals, and Steward Middle East, which operates in Saudi Arabia and the United Arab Emirates.",
+        "source_url": "https://en.wikipedia.org/wiki/Steward_Health_Care",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "Stryker": {
+    "facts": [
+      {
+        "text": "Stryker Corporation is an American multinational medical technologies corporation based in Portage, Michigan, United States. The company's products are used for medical surgery and neurotechnology, which include surgical equipment, patient and caregiver safety technologies, endoscopy systems, and patient handling, emergency medical equipment, and intensive care disposable products, as well as neurosurgical, neurovascular and oral and maxillofacial surgery implant products; and orthopedic surgery, which includes implants used in total joint replacements, such as hip, knee and shoulder, and trauma and extremities surgeries. Stryker's products are sold in over 75 countries and are used by 150 million patients annually. In 2024, 75% of the company's revenues came from the United States.",
+        "source_url": "https://en.wikipedia.org/wiki/Stryker_Corporation",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "Talkspace": {
+    "facts": [
+      {
+        "text": "Talkspace, Inc. is an American company that provides online and mobile therapy services. Founded in 2012 by Oren and Roni Frank, Talkspace connects users with licensed therapists and psychiatrists through web and mobile platforms. The service offers communication through text, audio, and video messaging, as well as live video sessions in some cases. The company is headquartered in New York City.",
+        "source_url": "https://en.wikipedia.org/wiki/Talkspace",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "Trinity Health": {
+    "facts": [
+      {
+        "text": "Trinity Health is an American not-for-profit Catholic health system operating 92 hospitals in 22 states, including 120 continuing care locations encompassing home care, hospice, PACE and senior living facilities. Based in Livonia, Michigan, Trinity Health employs more than 120,000 people including 5,300 physicians.",
+        "source_url": "https://en.wikipedia.org/wiki/Trinity_Health",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "UnitedHealth Group": {
+    "facts": [
+      {
+        "text": "UnitedHealth Group Incorporated is an American multinational for-profit company based in Eden Prairie, Minnesota, specializing in health insurance and health care services. Selling insurance products under UnitedHealthcare, and health care services under the Optum brand, it is the world's fourth-largest company by revenue and the largest health care company by revenue. The company is ranked fourth on the 2026 Fortune Global 500.",
+        "source_url": "https://en.wikipedia.org/wiki/UnitedHealth_Group",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "VNS Health": {
+    "facts": [
+      {
+        "text": "Founded in 1893 by nursing pioneer Lillian D. Wald and Mary M. Brewster, VNS Health is one of the largest not-for-profit home- and community-based health care organizations in the United States, serving the five boroughs of New York City; Nassau, Suffolk, and Westchester Counties; and parts of upstate New York.",
+        "source_url": "https://en.wikipedia.org/wiki/VNS_Health",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "Veritas Capital": {
+    "facts": [
+      {
+        "text": "Veritas Capital Fund Management, L.L.C. is an American private-equity firm founded in 1992 that invests in companies providing critical products and services, primarily technology-enabled products and services, to government and commercial customers worldwide. The firm's first fund closed in 1998. They closed an eighth flagship fund in 2022; in all, Veritas has approximately $45 billion of assets under management. Veritas is led by Ramzi Musallam, the firm's Chief Executive Officer and Managing Partner.",
+        "source_url": "https://en.wikipedia.org/wiki/Veritas_Capital",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "Warburg Pincus": {
+    "facts": [
+      {
+        "text": "Warburg Pincus LLC is an American multinational private equity firm based in New York City, with offices in the United States, Europe, Brazil, China, Japan, the Middle East, Southeast Asia and India. One of the oldest in the world, it has been a private equity investor since 1966.",
+        "source_url": "https://en.wikipedia.org/wiki/Warburg_Pincus",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "Welsh Carson": {
+    "facts": [
+      {
+        "text": "Welsh, Carson, Anderson & Stowe (WCAS), also referred to as Welsh Carson, is a private equity firm. WCAS was formed in 1979 and focuses on investing the industries of technology and healthcare, primarily in the United States. WCAS has a current portfolio of approximately 30 companies and has organized 17 limited partnerships with total capital of over $27 billion, consisting of 13 equity partnerships and four subordinated debt partnerships. WCAS is currently investing equity funds, including WCAS XII, L.P. and WCAS XIII, L.P.",
+        "source_url": "https://en.wikipedia.org/wiki/Welsh%2C_Carson%2C_Anderson_%26_Stowe",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "Zimmer Biomet": {
+    "facts": [
+      {
+        "text": "Zimmer Biomet Holdings, Inc. is a publicly traded American medical device company. It was founded in 1927 to produce aluminum splints. The firm is headquartered in Warsaw, Indiana, where it is part of the medical devices business cluster.",
+        "source_url": "https://en.wikipedia.org/wiki/Zimmer_Biomet",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "CVS Health/Aetna": {
+    "facts": [
+      {
+        "text": "CVS Health Corporation is an American multinational healthcare company that owns CVS Pharmacy, a retail pharmacy chain; CVS Caremark, a pharmacy benefits manager; and Aetna, a health insurance provider, among many other brands. The company is the world's second largest healthcare company, behind UnitedHealth Group. In 2023, the company was ranked 64th in the Forbes Global 2000. CVS started in Lowell, Massachusetts by brothers Stanley and Sidney Goldstein and their partner Ralph Hoagland. The name stood for Consumer Value Stores.",
+        "source_url": "https://en.wikipedia.org/wiki/CVS_Health",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "Hellman & Friedman": {
+    "facts": [
+      {
+        "text": "Hellman & Friedman (H&F) is an American private equity firm founded in 1984 by Warren Hellman and Tully Friedman that makes investments primarily through leveraged buyouts as well as growth capital investments. It has focused its efforts on several core target industries including media, financial services, professional services and information services.",
+        "source_url": "https://en.wikipedia.org/wiki/Hellman_%26_Friedman",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "Merck": {
+    "facts": [
+      {
+        "text": "Merck & Co., Inc. is an American multinational pharmaceutical company headquartered in Rahway, New Jersey. The company does business as Merck Sharp & Dohme or MSD outside the United States and Canada. The company is ranked fifth on the list of largest biomedical companies by revenue.",
+        "source_url": "https://en.wikipedia.org/wiki/Merck_%26_Co.",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "Regeneron": {
+    "facts": [
+      {
+        "text": "Regeneron Pharmaceuticals, Inc. is an American biotechnology company headquartered in Westchester County, New York. The company was founded in 1988. Originally focused on neurotrophic factors and their regenerative capabilities, giving rise to its present name; the company has since expanded operations into the study of both cytokine and tyrosine kinase receptors, which gave rise to their first product, which is a VEGF-trap.",
+        "source_url": "https://en.wikipedia.org/wiki/Regeneron_Pharmaceuticals",
+        "kind": "wikipedia"
+      }
+    ]
+  },
+  "Vista Equity": {
+    "facts": [
+      {
+        "text": "Vista Equity Partners Management, LLC (Vista) is an American private equity firm that invests in software businesses and manages over $100 billion in assets.",
+        "source_url": "https://en.wikipedia.org/wiki/Vista_Equity_Partners",
+        "kind": "wikipedia"
+      }
+    ]
+  }
+}

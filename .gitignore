@@ -1,0 +1,30 @@
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Generated run output (regenerate on demand; stale once llm.py changes)
+output/
+
+# OS
+.DS_Store
+
+# Editors
+.vscode/
+.idea/
+
+# Claude, plan, docs, etc.
+.claude/
+plan.md
+CLAUDE.md
+docs/

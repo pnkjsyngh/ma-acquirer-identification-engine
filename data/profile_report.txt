@@ -1,0 +1,208 @@
+============================================================
+1. ROW COUNT AND COLUMN DTYPES
+============================================================
+rows: 500
+  transaction_id: object
+  target_company: object
+  acquirer: object
+  sector: object
+  sub_sector: object
+  deal_year: int64
+  deal_quarter: object
+  deal_type: object
+  geography: object
+  financing_type: object
+  deal_size_mm: float64
+  target_revenue_mm: float64
+  target_ebitda_mm: float64
+  ebitda_margin_pct: float64
+  revenue_growth_pct: float64
+  ev_ebitda_multiple: float64
+  ev_revenue_multiple: float64
+  synergy_pct_of_deal: float64
+  outcome: object
+  strategic_rationale_tags: object
+  num_bidders: int64
+  days_to_close: float64
+  acquirer_type: object
+  target_ownership_pre: object
+
+============================================================
+2. VALUE COUNTS
+============================================================
+
+-- sector --
+  Behavioral Health: 70
+  Home Health/Hospice: 62
+  Physician Groups: 60
+  Health IT: 50
+  Dental: 46
+  Healthcare Services: 46
+  Health Insurance: 43
+  Revenue Cycle: 43
+  Medical Devices: 42
+  Pharma/Biotech: 38
+
+-- sub_sector --
+  Behavioral Health: 70
+  Home Health/Hospice: 62
+  Physician Groups: 60
+  Health IT: 50
+  Dental: 46
+  Healthcare Services: 46
+  Health Insurance: 43
+  Revenue Cycle: 43
+  Medical Devices: 42
+  Pharma/Biotech: 38
+
+-- deal_type --
+  Leveraged Buyout: 66
+  Platform Investment: 60
+  Bolt-on Acquisition: 57
+  Recapitalization: 56
+  SPAC Merger: 50
+  Strategic Acquisition: 48
+  Management Buyout: 47
+  Minority Investment: 42
+  Merger of Equals: 40
+  Carve-out: 34
+
+-- geography --
+  Midwest: 63
+  Southeast: 59
+  Mountain West: 53
+  Mid-Atlantic: 51
+  National: 51
+  Northeast: 51
+  Great Plains: 46
+  Multi-Regional: 44
+  West Coast: 42
+  Southwest: 40
+
+-- financing_type --
+  Stock: 80
+  All Cash: 79
+  Seller Financing: 74
+  Mixed: 69
+  Cash + Stock: 68
+  Leveraged: 66
+  Earnout: 64
+
+-- outcome --
+  Closed: 406
+  Withdrawn: 49
+  Pending: 21
+  Terminated: 14
+  Rumored: 10
+
+-- acquirer_type --
+  Financial Sponsor: 290
+  Strategic: 210
+
+-- target_ownership_pre --
+  Private: 208
+  PE-Backed: 141
+  Public: 76
+  Non-Profit: 75
+
+============================================================
+3. HEALTHCARE SERVICES SECTOR
+============================================================
+row count: 46
+rows with 100 <= deal_size_mm <= 400: 12
+
+============================================================
+4. NUMERIC DISTRIBUTIONS (overall vs Closed)
+============================================================
+
+-- deal_size_mm --
+  overall: min=6.10, p25=41.10, median=153.60, p75=458.82, max=14353.70
+  Closed : min=6.10, p25=47.25, median=166.00, p75=487.40, max=14353.70
+
+-- ev_ebitda_multiple --
+  overall: min=7.20, p25=12.30, median=15.75, p75=19.20, max=29.70
+  Closed : min=7.30, p25=12.33, median=15.70, p75=19.10, max=29.70
+
+-- ev_revenue_multiple --
+  overall: min=0.30, p25=1.90, median=2.69, p75=4.67, max=8.45
+  Closed : min=0.30, p25=1.91, median=2.70, p75=4.67, max=8.45
+
+-- ebitda_margin_pct --
+  overall: min=1.70, p25=11.00, median=15.50, p75=21.52, max=33.60
+  Closed : min=1.70, p25=10.90, median=15.65, p75=21.58, max=33.60
+
+-- revenue_growth_pct --
+  overall: min=2.70, p25=9.07, median=13.20, p75=17.20, max=27.70
+  Closed : min=2.70, p25=9.20, median=13.40, p75=17.20, max=27.70
+
+============================================================
+5. TOP 20 ACQUIRERS BY DEAL COUNT
+============================================================
+   1. Blackstone: 25 deals, common_type=Financial Sponsor, common_sector=Health Insurance
+   2. Nordic Capital: 24 deals, common_type=Financial Sponsor, common_sector=Physician Groups
+   3. Bain Capital: 24 deals, common_type=Financial Sponsor, common_sector=Physician Groups
+   4. Vista Equity: 24 deals, common_type=Financial Sponsor, common_sector=Behavioral Health
+   5. Welsh Carson: 23 deals, common_type=Financial Sponsor, common_sector=Physician Groups
+   6. Warburg Pincus: 23 deals, common_type=Financial Sponsor, common_sector=Home Health/Hospice
+   7. New Mountain Capital: 21 deals, common_type=Financial Sponsor, common_sector=Behavioral Health
+   8. TPG Capital: 18 deals, common_type=Financial Sponsor, common_sector=Health Insurance
+   9. Advent International: 18 deals, common_type=Financial Sponsor, common_sector=Behavioral Health
+  10. KKR: 17 deals, common_type=Financial Sponsor, common_sector=Physician Groups
+  11. Veritas Capital: 16 deals, common_type=Financial Sponsor, common_sector=Home Health/Hospice
+  12. Hellman & Friedman: 15 deals, common_type=Financial Sponsor, common_sector=Physician Groups
+  13. GTCR: 14 deals, common_type=Financial Sponsor, common_sector=Dental
+  14. General Atlantic: 14 deals, common_type=Financial Sponsor, common_sector=Physician Groups
+  15. Francisco Partners: 14 deals, common_type=Financial Sponsor, common_sector=Medical Devices
+  16. VNS Health: 6 deals, common_type=Strategic, common_sector=Home Health/Hospice
+  17. CenterWell Home Health: 6 deals, common_type=Strategic, common_sector=Home Health/Hospice
+  18. Lyra Health: 5 deals, common_type=Strategic, common_sector=Behavioral Health
+  19. Universal Health Services: 5 deals, common_type=Strategic, common_sector=Behavioral Health
+  20. Amgen: 5 deals, common_type=Strategic, common_sector=Pharma/Biotech
+
+============================================================
+6. DATA QUALITY (distinct + missing per column)
+============================================================
+  transaction_id: distinct=500, missing=0
+  target_company: distinct=500, missing=0
+  acquirer: distinct=107, missing=0
+  sector: distinct=10, missing=0
+  sub_sector: distinct=10, missing=0
+  deal_year: distinct=10, missing=0
+  deal_quarter: distinct=4, missing=0
+  deal_type: distinct=10, missing=0
+  geography: distinct=10, missing=0
+  financing_type: distinct=7, missing=0
+  deal_size_mm: distinct=462, missing=0
+  target_revenue_mm: distinct=429, missing=0
+  target_ebitda_mm: distinct=276, missing=0
+  ebitda_margin_pct: distinct=226, missing=0
+  revenue_growth_pct: distinct=194, missing=0
+  ev_ebitda_multiple: distinct=181, missing=0
+  ev_revenue_multiple: distinct=333, missing=0
+  synergy_pct_of_deal: distinct=150, missing=0
+  outcome: distinct=5, missing=0
+  strategic_rationale_tags: distinct=138, missing=0
+  num_bidders: distinct=5, missing=0
+  days_to_close: distinct=254, missing=94
+  acquirer_type: distinct=2, missing=0
+  target_ownership_pre: distinct=4, missing=0
+
+============================================================
+7. num_bidders and days_to_close (overall vs by outcome)
+============================================================
+
+-- num_bidders --
+  overall: min=1.00, p25=2.00, median=2.00, p75=3.00, max=5.00
+  Closed     : min=1.00, p25=2.00, median=2.00, p75=3.00, max=5.00
+  Withdrawn  : min=1.00, p25=2.00, median=2.00, p75=3.00, max=5.00
+  Pending    : min=1.00, p25=1.00, median=2.00, p75=3.00, max=5.00
+  Terminated : min=1.00, p25=2.00, median=3.00, p75=4.00, max=5.00
+  Rumored    : min=1.00, p25=1.00, median=2.00, p75=2.00, max=4.00
+
+-- days_to_close --
+  overall: min=45.00, p25=140.00, median=239.50, p75=322.75, max=420.00
+  Closed     : min=45.00, p25=140.00, median=239.50, p75=322.75, max=420.00
+  Withdrawn  : (no data)
+  Pending    : (no data)
+  Terminated : (no data)
+  Rumored    : (no data)
