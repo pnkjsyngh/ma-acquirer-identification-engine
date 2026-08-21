@@ -1,8 +1,16 @@
-"""Anthropic adapter: one async call per acquirer, run concurrently via asyncio.gather.
+"""Two-stage per-acquirer LLM synthesis, run concurrently across acquirers via asyncio.gather.
 
-MOCK_LLM=1 substitutes a deterministic canned rationale (built straight from the
-dossier, no network call) so the pipeline runs end-to-end with zero API keys --
-this is also what test_output.py exercises.
+Stage 1 (Anthropic): the complex/judgment part only -- the LLM selects and calls tools to
+gather evidence, and decides whether to widen to adjacent sectors when evidence is thin.
+Kept short and cheap on purpose (Anthropic calls are the expensive ones in this split).
+
+Stage 2 (DeepSeek V4 Pro via opencode-go by default, Anthropic as an explicit fallback):
+bulk prose generation only. Never calls tools, never re-decides anything Stage 1 already
+settled -- this is where the token volume (and cost) actually is.
+
+MOCK_LLM=1 substitutes deterministic canned output for both stages (no network call) so
+the pipeline runs end-to-end with zero API keys -- this is also what test_output.py
+exercises, including the conditional widen path.
 """
 
 from __future__ import annotations
@@ -11,10 +19,24 @@ import json
 import os
 import re
 
+from pydantic import ValidationError
+
 from app.output import validate_rationale
-from app.prompts import OUTPUT_SCHEMA, SYSTEM_PROMPT, build_user_prompt
+from app.prompts import (
+    OUTPUT_SCHEMA,
+    STAGE1_SYSTEM_PROMPT,
+    SYSTEM_PROMPT,
+    build_stage1_prompt,
+    build_stage2_prompt,
+)
+from app.schemas import Stage1Decision
+from app.tools import TOOL_SCHEMAS, execute_tool
 
 MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-5-20250929")
+STAGE2_BACKEND = os.environ.get("STAGE2_BACKEND", "opencode-go")
+STAGE2_MODEL = os.environ.get("STAGE2_MODEL", "deepseek-v4-pro")
+OPENCODE_BASE_URL = os.environ.get("OPENCODE_BASE_URL", "https://opencode.ai/zen/go/v1")
+MAX_TOOL_ITERATIONS = 6
 
 
 class RationaleGenerationError(Exception):
@@ -28,6 +50,93 @@ def _extract_json(text: str) -> dict:
     if fence_match:
         text = fence_match.group(1)
     return json.loads(text)
+
+
+def _apply_stage1_decision(dossier: dict, decision: Stage1Decision) -> tuple[dict, str]:
+    """The LLM decides *whether* to widen; the code decides *how* the merge is
+    structured -- keeps the merge deterministic and testable independent of the model."""
+    finalized = dict(dossier)
+    finalized["widened"] = decision.used_widen
+    finalized["widened_sectors"] = decision.sectors_widened
+    if decision.used_widen:
+        adjacent = dossier.get("adjacent_candidate_deals", [])
+        finalized["deals_table"] = dossier["deals_table"] + adjacent
+        by_sector = dict(dossier.get("deals_by_sector", {}))
+        for deal in adjacent:
+            by_sector[deal["sector"]] = by_sector.get(deal["sector"], 0) + 1
+        finalized["deals_by_sector"] = by_sector
+    return finalized, decision.reasoning
+
+
+def _mock_stage1(dossier: dict) -> tuple[dict, str]:
+    adjacent = dossier.get("adjacent_candidate_deals", [])
+    used_widen = bool(dossier.get("thin_evidence", False)) and bool(adjacent)
+    reasoning = (
+        f"[MOCK] {dossier['relevant_deals']} of {dossier['total_deals']} deals are directly relevant. "
+        + (
+            f"Evidence was thin, so widened into adjacent sectors: {sorted({d['sector'] for d in adjacent})}."
+            if used_widen
+            else "Evidence is sufficient without widening to adjacent sectors."
+        )
+    )
+    decision = Stage1Decision(
+        reasoning=reasoning,
+        used_widen=used_widen,
+        sectors_widened=sorted({d["sector"] for d in adjacent}) if used_widen else [],
+    )
+    return _apply_stage1_decision(dossier, decision)
+
+
+async def _stage1_tool_loop(client, dossier: dict, target_profile: dict) -> tuple[dict, str]:
+    messages: list[dict] = [{"role": "user", "content": build_stage1_prompt(target_profile, dossier)}]
+
+    for _ in range(MAX_TOOL_ITERATIONS):
+        response = await client.messages.create(
+            model=MODEL,
+            max_tokens=700,
+            temperature=0,
+            system=STAGE1_SYSTEM_PROMPT,
+            tools=TOOL_SCHEMAS,
+            messages=messages,
+        )
+
+        if response.stop_reason != "tool_use":
+            text = "".join(block.text for block in response.content if block.type == "text")
+            try:
+                decision = Stage1Decision.model_validate(_extract_json(text))
+            except (json.JSONDecodeError, ValidationError):
+                decision = Stage1Decision(
+                    reasoning="[fallback] could not parse Stage 1 decision output", used_widen=False
+                )
+            return _apply_stage1_decision(dossier, decision)
+
+        messages.append({"role": "assistant", "content": response.content})
+        tool_results = []
+        for block in response.content:
+            if block.type != "tool_use":
+                continue
+            try:
+                result = execute_tool(block.name, block.input, dossier, target_profile)
+            except ValueError as e:
+                result = {"error": str(e)}
+            tool_results.append(
+                {"type": "tool_result", "tool_use_id": block.id, "content": json.dumps(result, default=str)}
+            )
+        messages.append({"role": "user", "content": tool_results})
+
+    decision = Stage1Decision(reasoning="[fallback] tool loop exceeded max iterations", used_widen=False)
+    return _apply_stage1_decision(dossier, decision)
+
+
+async def stage1_gather_evidence(target_profile: dict, dossier: dict) -> tuple[dict, str]:
+    """Returns (finalized_dossier, stage1_reasoning)."""
+    if os.environ.get("MOCK_LLM") == "1":
+        return _mock_stage1(dossier)
+
+    import anthropic
+
+    client = anthropic.AsyncAnthropic()
+    return await _stage1_tool_loop(client, dossier, target_profile)
 
 
 _FALLBACK_RISKS = [
@@ -45,24 +154,33 @@ def _mock_risk_flags(dossier: dict) -> list[dict]:
     return flags[:4]
 
 
-def _mock_rationale(target_profile: dict, dossier: dict, conviction_level: str, external_facts: list[dict]) -> dict:
+def _mock_stage2(
+    target_profile: dict,
+    finalized_dossier: dict,
+    conviction_level: str,
+    external_facts: list[dict],
+    stage1_reasoning: str,
+) -> dict:
     sector = target_profile["sector"]
-    deals = dossier["deals_table"][:3]
+    deals = finalized_dossier["deals_table"][:3]
     return {
         "conviction": {
             "level": conviction_level,
             "rationale": (
-                f"[MOCK] {dossier['relevant_deals']} of {dossier['total_deals']} deals are relevant to "
-                f"{sector}, with a median EV/EBITDA of {dossier['median_ev_ebitda']}x on closed deals."
+                f"[MOCK] {finalized_dossier['relevant_deals']} of {finalized_dossier['total_deals']} deals are "
+                f"relevant to {sector}, with a median EV/EBITDA of {finalized_dossier['median_ev_ebitda']}x on "
+                f"closed deals."
             ),
         },
         "acquirer_overview": (
-            f"[MOCK] {dossier['acquirer']} is a {dossier['acquirer_type']} with {dossier['total_deals']} "
-            f"transactions in the dataset, most recently in {dossier['most_recent_deal_year']}."
+            f"[MOCK] {finalized_dossier['acquirer']} is a {finalized_dossier['acquirer_type']} with "
+            f"{finalized_dossier['total_deals']} transactions in the dataset, most recently in "
+            f"{finalized_dossier['most_recent_deal_year']}."
         ),
         "strategic_fit_thesis": (
-            f"[MOCK] {dossier['acquirer']}'s deal history in {list(dossier['deals_by_sector'].keys())} "
-            f"aligns with a ~${target_profile['deal_size_mm']:.0f}M {sector} target."
+            f"[MOCK] {finalized_dossier['acquirer']}'s deal history in "
+            f"{list(finalized_dossier['deals_by_sector'].keys())} aligns with a "
+            f"~${target_profile['deal_size_mm']:.0f}M {sector} target. Stage 1 evidence review: {stage1_reasoning}"
         ),
         "precedent_activity": [
             {
@@ -76,41 +194,78 @@ def _mock_rationale(target_profile: dict, dossier: dict, conviction_level: str, 
             for d in deals
         ],
         "valuation_context": {
-            "median_ev_ebitda": dossier["median_ev_ebitda"],
-            "median_ev_revenue": dossier["median_ev_revenue"],
-            "comparable_deal_ids": [c["target_company"] for c in dossier["comparable_closed_deals"][:3]],
-            "narrative": f"[MOCK] Comparable closed deals cluster around {dossier['median_ev_ebitda']}x EV/EBITDA.",
+            "median_ev_ebitda": finalized_dossier["median_ev_ebitda"],
+            "median_ev_revenue": finalized_dossier["median_ev_revenue"],
+            "comparable_deal_ids": [c["target_company"] for c in finalized_dossier["comparable_closed_deals"][:3]],
+            "narrative": f"[MOCK] Comparable closed deals cluster around {finalized_dossier['median_ev_ebitda']}x EV/EBITDA.",
         },
-        "risk_flags": _mock_risk_flags(dossier),
+        "risk_flags": _mock_risk_flags(finalized_dossier),
         "external_sources": [
             {"fact": f["text"], "source_url": f["source_url"], "kind": "wikipedia"} for f in external_facts[:2]
         ],
     }
 
 
-async def synthesize_rationale(
-    target_profile: dict,
-    dossier: dict,
-    conviction_level: str,
-    external_facts: list[dict],
-) -> dict:
-    if os.environ.get("MOCK_LLM") == "1":
-        return _mock_rationale(target_profile, dossier, conviction_level, external_facts)
+async def _call_stage2_opencode(system: str, prompt: str) -> str:
+    import httpx
 
+    api_key = os.environ["OPENCODE_API_KEY"]
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        response = await client.post(
+            f"{OPENCODE_BASE_URL}/chat/completions",
+            headers={"Authorization": f"Bearer {api_key}"},
+            json={
+                "model": STAGE2_MODEL,
+                "temperature": 0,
+                "max_tokens": 2000,
+                "messages": [
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": prompt},
+                ],
+            },
+        )
+        response.raise_for_status()
+        return response.json()["choices"][0]["message"]["content"]
+
+
+async def _call_stage2_anthropic(system: str, prompt: str) -> str:
     import anthropic
 
     client = anthropic.AsyncAnthropic()
-    user_prompt = build_user_prompt(target_profile, dossier, conviction_level, external_facts)
+    response = await client.messages.create(
+        model=MODEL,
+        max_tokens=2000,
+        temperature=0,
+        system=system,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    return response.content[0].text
+
+
+async def _call_stage2(system: str, prompt: str) -> str:
+    """Returns raw text. STAGE2_BACKEND selects the backend: 'opencode-go' (default,
+    DeepSeek V4 Pro -- cheap, bulk generation only, never sees tools) or 'anthropic'
+    (fallback if opencode-go is unreachable -- same model as Stage 1, at Stage 1's
+    price, but keeps a live-key run from having a single point of failure)."""
+    if STAGE2_BACKEND == "anthropic":
+        return await _call_stage2_anthropic(system, prompt)
+    return await _call_stage2_opencode(system, prompt)
+
+
+async def stage2_write_rationale(
+    target_profile: dict,
+    finalized_dossier: dict,
+    conviction_level: str,
+    external_facts: list[dict],
+    stage1_reasoning: str,
+) -> dict:
+    if os.environ.get("MOCK_LLM") == "1":
+        return _mock_stage2(target_profile, finalized_dossier, conviction_level, external_facts, stage1_reasoning)
+
+    prompt = build_stage2_prompt(target_profile, finalized_dossier, conviction_level, external_facts, stage1_reasoning)
 
     async def _call(extra: str = "") -> str:
-        response = await client.messages.create(
-            model=MODEL,
-            max_tokens=2000,
-            temperature=0,
-            system=SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": user_prompt + extra}],
-        )
-        return response.content[0].text
+        return await _call_stage2(SYSTEM_PROMPT, prompt + extra)
 
     raw = await _call()
     try:
@@ -133,11 +288,25 @@ async def synthesize_rationale(
         parsed_retry = _extract_json(raw_retry)
     except json.JSONDecodeError as e:
         raise RationaleGenerationError(
-            f"Could not parse LLM output as JSON for {dossier['acquirer']} after retry: {e}"
+            f"Could not parse LLM output as JSON for {finalized_dossier['acquirer']} after retry: {e}"
         ) from e
     errors_retry = validate_rationale(parsed_retry, conviction_level)
     if errors_retry:
         raise RationaleGenerationError(
-            f"LLM output still invalid for {dossier['acquirer']} after retry: {errors_retry}"
+            f"LLM output still invalid for {finalized_dossier['acquirer']} after retry: {errors_retry}"
         )
     return parsed_retry
+
+
+async def synthesize_rationale(
+    target_profile: dict,
+    dossier: dict,
+    conviction_level: str,
+    external_facts: list[dict],
+) -> dict:
+    """Thin orchestrator preserving the pre-retrofit external signature: Stage 1
+    gathers/finalizes evidence, Stage 2 writes the rationale from it."""
+    finalized_dossier, stage1_reasoning = await stage1_gather_evidence(target_profile, dossier)
+    return await stage2_write_rationale(
+        target_profile, finalized_dossier, conviction_level, external_facts, stage1_reasoning
+    )

@@ -17,6 +17,8 @@ from pathlib import Path
 
 from app.data import DEFAULT_CSV_PATH, load_transactions
 from app.enrich import get_external_facts, load_enrichment_cache
+from app.evidence import compute_adjacent_candidates
+from app.features import ELIGIBILITY_DEAL_COUNT
 from app.llm import synthesize_rationale
 from app.output import validate_rationale, write_outputs
 from app.prompts import conviction_level_for_rank
@@ -58,6 +60,8 @@ async def run_profile(
     async def _one(rank: int, row) -> tuple[str, dict]:
         acquirer = row["acquirer"]
         dossier = build_dossier(deal_fit_df, acquirer, target_profile)
+        dossier["thin_evidence"] = dossier["relevant_deals"] < ELIGIBILITY_DEAL_COUNT
+        dossier["adjacent_candidate_deals"] = compute_adjacent_candidates(deal_fit_df, acquirer, target_profile)
         conviction_level = conviction_level_for_rank(rank)
         external_facts = get_external_facts(acquirer, enrichment_cache)
         rationale = await synthesize_rationale(target_profile, dossier, conviction_level, external_facts)
