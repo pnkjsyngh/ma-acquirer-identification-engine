@@ -143,6 +143,7 @@ def write_outputs(
     rationales: dict[str, dict],
     output_dir: str | Path = "output",
     elapsed_seconds: float | None = None,
+    trace_ids: dict[str, tuple[str | None, str | None]] | None = None,
 ) -> Path:
     out_path = Path(output_dir) / profile_slug
     out_path.mkdir(parents=True, exist_ok=True)
@@ -155,6 +156,7 @@ def write_outputs(
         rationale = rationales[row["acquirer"]]
         md = render_acquirer_markdown(rank, row, rationale)
         (out_path / f"{rank:02d}_{slugify(row['acquirer'])}.md").write_text(md)
+        trace_id, observation_id = (trace_ids or {}).get(row["acquirer"], (None, None))
         payload["acquirers"].append(
             {
                 "rank": rank,
@@ -162,6 +164,8 @@ def write_outputs(
                 "acquirer_type": row["acquirer_type"],
                 "score": row["score"],
                 **rationale,
+                "trace_id": trace_id,
+                "observation_id": observation_id,
             }
         )
 

@@ -36,3 +36,10 @@ def test_index_returns_html():
     assert response.status_code == 200
     assert "text/html" in response.headers["content-type"]
     assert len(response.text) > 0
+
+
+def test_feedback_not_recorded_without_langfuse_configured(monkeypatch):
+    monkeypatch.delenv("LANGFUSE_PUBLIC_KEY", raising=False)
+    response = client.post("/feedback", json={"trace_id": "abc", "observation_id": "def", "flagged": True})
+    assert response.status_code == 200
+    assert response.json() == {"recorded": False}

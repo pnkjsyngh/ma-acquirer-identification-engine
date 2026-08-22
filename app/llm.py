@@ -23,6 +23,7 @@ import time
 
 from pydantic import ValidationError
 
+from app import tracing
 from app.output import validate_rationale
 from app.prompts import (
     OUTPUT_SCHEMA,
@@ -116,7 +117,7 @@ def _mock_stage1(dossier: dict) -> tuple[dict, str]:
     return _apply_stage1_decision(dossier, decision)
 
 
-async def _stage1_tool_loop(client, dossier: dict, target_profile: dict) -> tuple[dict, str]:
+async def _stage1_tool_loop(client, dossier: dict, target_profile: dict, usage: dict) -> tuple[dict, str]:
     messages: list[dict] = [{"role": "user", "content": build_stage1_prompt(target_profile, dossier)}]
 
     for _ in range(MAX_TOOL_ITERATIONS):
@@ -128,6 +129,8 @@ async def _stage1_tool_loop(client, dossier: dict, target_profile: dict) -> tupl
             tools=TOOL_SCHEMAS,
             messages=messages,
         )
+        usage["input_tokens"] += response.usage.input_tokens
+        usage["output_tokens"] += response.usage.output_tokens
 
         if response.stop_reason != "tool_use":
             text = "".join(block.text for block in response.content if block.type == "text")
@@ -175,10 +178,15 @@ async def stage1_gather_evidence(target_profile: dict, dossier: dict) -> tuple[d
     started = time.monotonic()
     logger.info("Stage 1 (evidence gathering) started for %s", acquirer)
 
-    if os.environ.get("MOCK_LLM") == "1":
-        finalized_dossier, reasoning = _mock_stage1(dossier)
-    else:
-        finalized_dossier, reasoning = await _stage1_tool_loop(_get_anthropic_client(), dossier, target_profile)
+    with tracing.start_observation("generation", f"stage1:{acquirer}") as obs:
+        usage = {"input_tokens": 0, "output_tokens": 0}
+        if os.environ.get("MOCK_LLM") == "1":
+            finalized_dossier, reasoning = _mock_stage1(dossier)
+        else:
+            finalized_dossier, reasoning = await _stage1_tool_loop(
+                _get_anthropic_client(), dossier, target_profile, usage
+            )
+        tracing.record_usage(obs, usage["input_tokens"], usage["output_tokens"])
 
     elapsed = time.monotonic() - started
     logger.info(
@@ -257,7 +265,7 @@ def _mock_stage2(
 OPENCODE_MAX_RETRIES = 3
 
 
-async def _call_stage2_opencode(system: str, prompt: str) -> str:
+async def _call_stage2_opencode(system: str, prompt: str, usage: dict) -> str:
     # gpt-5.6-luna is the default (see STAGE2_MODEL). Both deepseek-v4-pro and
     # deepseek-v4-flash are also available via opencode-go but are reasoning models
     # with no documented way to cap/disable hidden reasoning -- confirmed live that
@@ -311,6 +319,10 @@ async def _call_stage2_opencode(system: str, prompt: str) -> str:
             await _asyncio.sleep(2**attempt)
             continue
 
+        resp_usage = data.get("usage") or {}
+        usage["input_tokens"] += resp_usage.get("prompt_tokens", 0)
+        usage["output_tokens"] += resp_usage.get("completion_tokens", 0)
+
         choice = data["choices"][0]
         content = choice["message"]["content"]
         if not content and choice.get("finish_reason") == "length":
@@ -324,7 +336,7 @@ async def _call_stage2_opencode(system: str, prompt: str) -> str:
     raise RationaleGenerationError(f"opencode-go returned repeated server errors: {last_error}")
 
 
-async def _call_stage2_anthropic(system: str, prompt: str) -> str:
+async def _call_stage2_anthropic(system: str, prompt: str, usage: dict) -> str:
     client = _get_anthropic_client()
     response = await client.messages.create(
         model=MODEL,
@@ -333,17 +345,19 @@ async def _call_stage2_anthropic(system: str, prompt: str) -> str:
         system=system,
         messages=[{"role": "user", "content": prompt}],
     )
+    usage["input_tokens"] += response.usage.input_tokens
+    usage["output_tokens"] += response.usage.output_tokens
     return response.content[0].text
 
 
-async def _call_stage2(system: str, prompt: str) -> str:
+async def _call_stage2(system: str, prompt: str, usage: dict) -> str:
     """Returns raw text. STAGE2_BACKEND selects the backend: 'opencode-go' (default,
     DeepSeek V4 Pro -- cheap, bulk generation only, never sees tools) or 'anthropic'
     (fallback if opencode-go is unreachable -- same model as Stage 1, at Stage 1's
     price, but keeps a live-key run from having a single point of failure)."""
     if STAGE2_BACKEND == "anthropic":
-        return await _call_stage2_anthropic(system, prompt)
-    return await _call_stage2_opencode(system, prompt)
+        return await _call_stage2_anthropic(system, prompt, usage)
+    return await _call_stage2_opencode(system, prompt, usage)
 
 
 async def stage2_write_rationale(
@@ -357,11 +371,18 @@ async def stage2_write_rationale(
     started = time.monotonic()
     logger.info("Stage 2 (synthesis) started for %s", acquirer)
     try:
-        if os.environ.get("MOCK_LLM") == "1":
-            return _mock_stage2(target_profile, finalized_dossier, conviction_level, external_facts, stage1_reasoning)
-        return await _stage2_write_rationale_live(
-            target_profile, finalized_dossier, conviction_level, external_facts, stage1_reasoning
-        )
+        with tracing.start_observation("generation", f"stage2:{acquirer}") as obs:
+            usage = {"input_tokens": 0, "output_tokens": 0}
+            if os.environ.get("MOCK_LLM") == "1":
+                result = _mock_stage2(
+                    target_profile, finalized_dossier, conviction_level, external_facts, stage1_reasoning
+                )
+            else:
+                result = await _stage2_write_rationale_live(
+                    target_profile, finalized_dossier, conviction_level, external_facts, stage1_reasoning, usage
+                )
+            tracing.record_usage(obs, usage["input_tokens"], usage["output_tokens"])
+            return result
     finally:
         logger.info("Stage 2 for %s completed in %.2fs", acquirer, time.monotonic() - started)
 
@@ -372,11 +393,12 @@ async def _stage2_write_rationale_live(
     conviction_level: str,
     external_facts: list[dict],
     stage1_reasoning: str,
+    usage: dict,
 ) -> dict:
     prompt = build_stage2_prompt(target_profile, finalized_dossier, conviction_level, external_facts, stage1_reasoning)
 
     async def _call(extra: str = "") -> str:
-        return await _call_stage2(SYSTEM_PROMPT, prompt + extra)
+        return await _call_stage2(SYSTEM_PROMPT, prompt + extra, usage)
 
     raw = await _call()
     try:
