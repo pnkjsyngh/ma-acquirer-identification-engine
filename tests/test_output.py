@@ -1,6 +1,8 @@
 import asyncio
 import os
+from pathlib import Path
 
+import pandas as pd
 import pytest
 
 os.environ["MOCK_LLM"] = "1"
@@ -9,7 +11,12 @@ from app.data import load_transactions  # noqa: E402
 from app.evidence import compute_adjacent_candidates  # noqa: E402
 from app.features import ELIGIBILITY_DEAL_COUNT  # noqa: E402
 from app.llm import synthesize_rationale  # noqa: E402
-from app.output import render_acquirer_markdown, render_summary_markdown, validate_rationale  # noqa: E402
+from app.output import (  # noqa: E402
+    render_acquirer_markdown,
+    render_comparison_markdown,
+    render_summary_markdown,
+    validate_rationale,
+)
 from app.prompts import conviction_level_for_rank  # noqa: E402
 from app.ranking import build_dossier, rank_acquirers  # noqa: E402
 from app.schemas import RationaleOutput  # noqa: E402
@@ -171,6 +178,34 @@ def test_widen_path_actually_executes_for_thin_evidence_acquirer(df):
     errors = validate_rationale(rationale, "Low")
     assert errors == []
     assert "widened into adjacent" in rationale["strategic_fit_thesis"]
+
+
+def test_render_comparison_markdown_lists_acquirers_from_both_profiles(df):
+    profile_a = {"sector": "Healthcare Services", "deal_size_mm": 200, "geography": None}
+    profile_b = {"sector": "Health IT", "deal_size_mm": 150, "geography": "National"}
+    ranked_a, _ = rank_acquirers(df, profile_a, top_n=3)
+    ranked_b, _ = rank_acquirers(df, profile_b, top_n=3)
+
+    md = render_comparison_markdown(profile_a, profile_b, ranked_a, ranked_b, Path("out_a"), Path("out_b"))
+
+    for acquirer in ranked_a["acquirer"]:
+        assert acquirer in md
+    for acquirer in ranked_b["acquirer"]:
+        assert acquirer in md
+    assert "Overlap:" in md
+
+
+def test_render_comparison_markdown_marks_overlap_correctly():
+    profile_a = {"sector": "Healthcare Services", "deal_size_mm": 200, "geography": None}
+    profile_b = {"sector": "Healthcare Services", "deal_size_mm": 210, "geography": None}
+    ranked_a = pd.DataFrame(
+        [{"acquirer": "Atrium Health", "acquirer_type": "Strategic", "score": 0.7}]
+    )
+    ranked_b = pd.DataFrame(
+        [{"acquirer": "Atrium Health", "acquirer_type": "Strategic", "score": 0.65}]
+    )
+    md = render_comparison_markdown(profile_a, profile_b, ranked_a, ranked_b, Path("a"), Path("b"))
+    assert "Overlap: 1/1" in md
 
 
 def test_render_summary_markdown_lists_all_acquirers(ranked_and_dossiers):

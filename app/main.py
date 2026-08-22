@@ -3,6 +3,7 @@
   python -m app rank --profile healthcare_services_200mm
   python -m app rank --sector "Healthcare Services" --deal-size-mm 200
   python -m app rank --all-profiles
+  python -m app rank --compare healthcare_services_200mm health_it_150mm_national
   python -m app enrich
 """
 
@@ -23,7 +24,7 @@ from app.evidence import compute_adjacent_candidates
 from app.features import ELIGIBILITY_DEAL_COUNT
 from app.grounding import annotate_precedent_activity
 from app.llm import synthesize_rationale
-from app.output import validate_rationale, write_outputs
+from app.output import render_comparison_markdown, validate_rationale, write_outputs
 from app.prompts import conviction_level_for_rank
 from app.ranking import build_dossier, rank_acquirers
 
@@ -121,6 +122,38 @@ async def run_profile(
     return out_path
 
 
+async def compare_profiles(
+    df,
+    profile_a: dict,
+    profile_b: dict,
+    enrichment_cache: dict,
+    top_n: int,
+    output_dir: str,
+    slug_a: str,
+    slug_b: str,
+) -> Path:
+    """Runs both profiles' full pipelines concurrently (each already runs its acquirers
+    concurrently internally), then writes a side-by-side overlap summary alongside the
+    two normal per-profile output dirs. rank_acquirers is deterministic/no-LLM-cost, so
+    calling it again here (on top of run_profile's internal call) to get the ranked
+    tables for the comparison table is cheap and keeps run_profile's signature
+    unchanged."""
+    ranked_a, _ = rank_acquirers(df, profile_a, top_n=top_n)
+    ranked_b, _ = rank_acquirers(df, profile_b, top_n=top_n)
+
+    out_path_a, out_path_b = await asyncio.gather(
+        run_profile(df, profile_a, enrichment_cache, top_n, output_dir, slug=slug_a),
+        run_profile(df, profile_b, enrichment_cache, top_n, output_dir, slug=slug_b),
+    )
+
+    compare_path = Path(output_dir) / f"compare_{slug_a}_vs_{slug_b}"
+    compare_path.mkdir(parents=True, exist_ok=True)
+    md = render_comparison_markdown(profile_a, profile_b, ranked_a, ranked_b, out_path_a, out_path_b)
+    (compare_path / "comparison.md").write_text(md)
+    print(f"Comparison -> {compare_path}")
+    return compare_path
+
+
 def main() -> None:
     from app.logging_config import configure_logging
 
@@ -137,6 +170,12 @@ def main() -> None:
     rank_p.add_argument("--top-n", type=int, default=2)
     rank_p.add_argument("--output-dir", default="output")
     rank_p.add_argument("--all-profiles", action="store_true", help="Run every profile in synthetic_profiles.json")
+    rank_p.add_argument(
+        "--compare",
+        nargs=2,
+        metavar=("SLUG_A", "SLUG_B"),
+        help="Compare two known --profile slugs side-by-side instead of ranking one profile",
+    )
 
     sub.add_parser("enrich", help="Pre-fetch Wikipedia summaries for all acquirers (one-time, offline after)")
 
@@ -162,6 +201,16 @@ def main() -> None:
 
     df = load_transactions(DEFAULT_CSV_PATH)
     enrichment_cache = load_enrichment_cache()
+
+    if args.compare:
+        slug_a, slug_b = args.compare
+        profile_a = resolve_profile(slug_a, None, None, None)
+        profile_b = resolve_profile(slug_b, None, None, None)
+        asyncio.run(
+            compare_profiles(df, profile_a, profile_b, enrichment_cache, args.top_n, args.output_dir, slug_a, slug_b)
+        )
+        tracing.flush()
+        return
 
     if args.all_profiles:
         # Single asyncio.run() for the whole sweep, not one per profile -- the shared
