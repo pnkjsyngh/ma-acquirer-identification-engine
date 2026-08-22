@@ -65,6 +65,48 @@ def test_validate_rationale_flags_conviction_mismatch():
     assert any("mismatch" in e for e in errors)
 
 
+def test_validate_rationale_flags_fabricated_precedent_activity(ranked_and_dossiers):
+    """Regression guard: a citation that doesn't match any real deal in the dossier
+    must be rejected the same way a schema violation is, not silently accepted."""
+    ranked, deal_fit_df = ranked_and_dossiers
+    dossier = build_dossier(deal_fit_df, ranked.iloc[0]["acquirer"], DEFAULT_PROFILE)
+    rationale = {
+        "conviction": {"level": "High", "rationale": "x"},
+        "acquirer_overview": "x",
+        "strategic_fit_thesis": "x",
+        "precedent_activity": [
+            {"year": 1999, "target": "Not A Real Target", "sector": "Nowhere", "deal_size_mm": 1.0, "deal_type": "Made Up"}
+        ],
+        "valuation_context": {},
+        "risk_flags": [{"risk": "a", "evidence": "b"}, {"risk": "c", "evidence": "d"}],
+    }
+    errors = validate_rationale(rationale, "High", dossier=dossier)
+    assert any("no matching deal" in e for e in errors)
+
+
+def test_validate_rationale_passes_real_precedent_activity(ranked_and_dossiers):
+    ranked, deal_fit_df = ranked_and_dossiers
+    dossier = build_dossier(deal_fit_df, ranked.iloc[0]["acquirer"], DEFAULT_PROFILE)
+    real_deal = dossier["deals_table"][0]
+    rationale = {
+        "conviction": {"level": "High", "rationale": "x"},
+        "acquirer_overview": "x",
+        "strategic_fit_thesis": "x",
+        "precedent_activity": [
+            {
+                "year": real_deal["deal_year"],
+                "target": real_deal["target_company"],
+                "sector": real_deal["sector"],
+                "deal_size_mm": real_deal["deal_size_mm"],
+                "deal_type": real_deal["deal_type"],
+            }
+        ],
+        "valuation_context": {},
+        "risk_flags": [{"risk": "a", "evidence": "b"}, {"risk": "c", "evidence": "d"}],
+    }
+    assert validate_rationale(rationale, "High", dossier=dossier) == []
+
+
 def test_validate_rationale_flags_insufficient_risk_flags():
     rationale = {
         "conviction": {"level": "High", "rationale": "x"},

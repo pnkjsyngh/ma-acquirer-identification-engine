@@ -404,7 +404,7 @@ async def _stage2_write_rationale_live(
     raw = await _call()
     try:
         parsed = _extract_json(raw)
-        errors = validate_rationale(parsed, conviction_level)
+        errors = validate_rationale(parsed, conviction_level, dossier=finalized_dossier)
     except json.JSONDecodeError:
         parsed = None
         errors = [f"could not parse response as JSON:\n{raw}"]
@@ -424,7 +424,7 @@ async def _stage2_write_rationale_live(
         raise RationaleGenerationError(
             f"Could not parse LLM output as JSON for {finalized_dossier['acquirer']} after retry: {e}"
         ) from e
-    errors_retry = validate_rationale(parsed_retry, conviction_level)
+    errors_retry = validate_rationale(parsed_retry, conviction_level, dossier=finalized_dossier)
     if errors_retry:
         raise RationaleGenerationError(
             f"LLM output still invalid for {finalized_dossier['acquirer']} after retry: {errors_retry}"

@@ -9,6 +9,7 @@ from pathlib import Path
 import pandas as pd
 from pydantic import ValidationError
 
+from app.grounding import check_precedent_activity_against_dossier
 from app.schemas import RationaleOutput
 
 REQUIRED_SECTIONS = [
@@ -21,15 +22,20 @@ REQUIRED_SECTIONS = [
 ]
 
 
-def validate_rationale(rationale: dict, expected_conviction: str) -> list[str]:
+def validate_rationale(rationale: dict, expected_conviction: str, dossier: dict | None = None) -> list[str]:
     """Returns a list of validation error strings (empty = valid). Never raises --
     callers decide whether to surface a structured error or proceed with warnings.
 
     Structural/type checks are backed by RationaleOutput (Pydantic); conviction-match
     is checked directly against the raw dict since it's a business rule ("must equal
-    the deterministically-computed level") that a schema alone can't express.
+    the deterministically-computed level") that a schema alone can't express. Passing
+    `dossier` also grounds precedent_activity citations against real CSV-derived deals
+    (app/llm.py's retry loop calls this with the dossier so a fabricated citation is
+    treated the same as a schema violation -- it triggers a retry, not a silent pass).
     """
     errors = []
+    if dossier is not None:
+        errors.extend(check_precedent_activity_against_dossier(rationale.get("precedent_activity", []), dossier))
     for section in REQUIRED_SECTIONS:
         if section not in rationale:
             errors.append(f"missing section: {section}")
@@ -74,7 +80,8 @@ def render_acquirer_markdown(rank: int, score_row: pd.Series, rationale: dict) -
     conviction = rationale["conviction"]
     precedent = "\n".join(
         f"- {p['year']} | {p['target']} | {p['sector']} | ${p['deal_size_mm']:.0f}M | "
-        f"{p['deal_type']} | EV/EBITDA {p.get('ev_ebitda_multiple', 'n/a')}"
+        f"{p['deal_type']} | EV/EBITDA {p.get('ev_ebitda_multiple', 'n/a')} | "
+        f"CSV row {p['csv_row'] if p.get('csv_row') is not None else 'NOT FOUND'}"
         for p in rationale["precedent_activity"]
     ) or "- No directly comparable precedent transactions in the dataset."
     risks = "\n".join(f"- **{r['risk']}**: {r['evidence']}" for r in rationale["risk_flags"])

@@ -21,6 +21,7 @@ from app.data import DEFAULT_CSV_PATH, load_transactions
 from app.enrich import get_external_facts, load_enrichment_cache
 from app.evidence import compute_adjacent_candidates
 from app.features import ELIGIBILITY_DEAL_COUNT
+from app.grounding import annotate_precedent_activity
 from app.llm import synthesize_rationale
 from app.output import validate_rationale, write_outputs
 from app.prompts import conviction_level_for_rank
@@ -86,9 +87,12 @@ async def run_profile(
         with tracing.start_observation("span", f"acquirer:{acquirer}"):
             trace_id, observation_id = tracing.current_ids()
             rationale = await synthesize_rationale(target_profile, dossier, conviction_level, external_facts)
-        errors = validate_rationale(rationale, conviction_level)
+        errors = validate_rationale(rationale, conviction_level, dossier=dossier)
         if errors:
             print(f"  [warn] {acquirer}: {'; '.join(errors)}", file=sys.stderr)
+        rationale["precedent_activity"] = annotate_precedent_activity(
+            rationale["precedent_activity"], deal_fit_df, acquirer
+        )
         return acquirer, rationale, trace_id, observation_id
 
     logger.info("Synthesizing rationale for %d acquirers concurrently...", top_n)
@@ -130,7 +134,7 @@ def main() -> None:
     rank_p.add_argument("--sector")
     rank_p.add_argument("--deal-size-mm", type=float)
     rank_p.add_argument("--geography", default=None)
-    rank_p.add_argument("--top-n", type=int, default=10)
+    rank_p.add_argument("--top-n", type=int, default=2)
     rank_p.add_argument("--output-dir", default="output")
     rank_p.add_argument("--all-profiles", action="store_true", help="Run every profile in synthetic_profiles.json")
 
