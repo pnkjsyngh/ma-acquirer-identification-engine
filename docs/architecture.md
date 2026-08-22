@@ -18,7 +18,7 @@ flowchart TD
 
     subgraph LLM_INNER [" "]
         direction TB
-        subgraph STAGE1 ["Stage 1 — Anthropic (complex/judgment only, kept short)"]
+        subgraph STAGE1 ["Stage 1 — higher-reasoning model (complex/judgment only, kept short)"]
             direction TB
             R1["1. Reasoning / scratchpad step"] --> R2
             R2["2. LLM-selected tool calls (schema'd)<br/>get_precedent_deals(acquirer)<br/>get_valuation_comps(sector, size)<br/>get_rationale_tag_overlap(acquirer)"] --> R3
@@ -27,7 +27,7 @@ flowchart TD
             R3 -- "no" --> R4B["finalize dossier"]
             R4 --> R4B
         end
-        R4B --> S2["Stage 2 — gpt-5.6-luna via opencode-go<br/>(bulk prose only, no tools, no routing)<br/>writes rationale into structured schema<br/>from Stage 1's dossier + reasoning trace"]
+        R4B --> S2["Stage 2 — smaller model via opencode-go<br/>(bulk prose only, no tools, no routing)<br/>writes rationale into structured schema<br/>from Stage 1's dossier + reasoning trace"]
         S2 --> R6{"schema valid?"}
         R6 -- "no: retry w/ error appended" --> S2
         R6 -- "yes" --> R7["done"]
@@ -36,11 +36,13 @@ flowchart TD
     LLM --> OUTPUT["output.py<br/>markdown / JSON, 10 rationales"]
 ```
 
-Two-stage split is cost-driven, not a capability split: Anthropic calls are the expensive ones, so Stage 1 is kept
-short (decide what evidence to pull, whether to widen the sector search, and reason about it) while Stage 2 —
-where the actual token volume lives, six prose sections × 10 acquirers — runs on the cheaper model. DeepSeek never
-calls a tool and never makes the routing decision; it only ever sees a fully-decided dossier plus Stage 1's
-reasoning trace and writes prose into the schema. The validate/repair loop wraps Stage 2's output specifically.
+Two-stage split is capability-fit driven, with lower cost following naturally from that fit rather than being
+the reason for it: Stage 1's job (deciding what evidence to pull, whether to widen the sector search, reasoning
+through it) genuinely needs a higher-reasoning model. Stage 2's job (six prose sections × 10 acquirers, written
+from a dossier Stage 1 already finalized) doesn't — using a high-reasoning model there would be reaching for a
+sledgehammer where a hammer does the job, so it runs on a smaller model instead. That smaller model never calls
+a tool and never makes the routing decision; it only ever sees a fully-decided dossier plus Stage 1's reasoning
+trace and writes prose into the schema. The validate/repair loop wraps Stage 2's output specifically.
 
 ## Design decisions
 

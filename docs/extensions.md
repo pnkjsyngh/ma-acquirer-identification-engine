@@ -22,6 +22,17 @@ sum — is already additive, not a rewrite.
 (e.g. a banker's full deal list for the quarter), not one at a time — same underlying `rank_acquirers` call,
 batched, with a portfolio-level summary view.
 
+**Broader target-profile parameter surface.** Today a target is `sector` + `deal_size_mm` + optional
+`geography` (plus optional `thesis_tags`) — three or four levers total. The dataset itself carries several more
+dimensions a real analyst would want to express a preference on: preferred `financing_type` or `deal_type`
+(e.g. "prefers all-cash, avoid earnouts"), a minimum `num_bidders` threshold (competitive-process tolerance), an
+`outcome`-quality preference, or a target `target_ownership_pre` (e.g. "comparable to other PE-backed exits").
+Each is architecturally the same shape as "Richer target attributes" above — one new signal function, one new
+`WEIGHTS` entry — so this is really that same pattern applied more broadly rather than a new mechanism. Worth
+sequencing after `WEIGHTS` is externalized to a config file (see the README's Limitations & extensions section):
+more parameters means more weights, and a growing hardcoded `WEIGHTS` dict is exactly the pressure that makes
+externalizing it worthwhile.
+
 ## Cost & performance
 
 **Operational memory / result caching.** Right now every run re-executes the full pipeline, live LLM calls
@@ -36,8 +47,8 @@ cost, and latency in a dashboard, not just application logs (see the README's Ob
 section). What's still missing: no aggregate cost-per-run figure surfaced in the app or the UI itself — it's
 per-call in the Langfuse dashboard only. Surfacing it locally would mean threading a self-computed cost figure
 through the pipeline the same way `trace_id`/`csv_row` already are, plus a locally-hardcoded per-token price
-for Claude (Stage 1) alongside the one that already exists for `gpt-5.6-luna` (Stage 2) — a real staleness risk
-if provider pricing changes, the same tradeoff already being carried for the Stage 2 fallback.
+for the Stage 1 model alongside the one that already exists for the Stage 2 model — a real staleness risk if
+provider pricing changes, the same tradeoff already being carried for the Stage 2 fallback.
 
 **Streaming/progressive UI.** The web UI currently blocks on one `POST /rank` for the full ~30-45s run. A
 streaming variant (Server-Sent Events or WebSockets) could show each acquirer's rationale as it completes
@@ -101,5 +112,19 @@ it was deliberately deprioritized versus everything above.
 but not for multi-user/audit-trail needs. A real datastore (Postgres) would enable querying past runs, versioning
 rationale changes over time, and proper multi-user access rather than a shared local filesystem.
 
-**Auth & multi-user.** If this became an actual internal tool rather than a prototype: authentication, per-user
-run history, and rate limiting — none of which exist today and none of which were in scope for a take-home.
+**Productionizing & deployment.** This is architecturally solid (modular, tested, observable) but still a
+single-process prototype, not something built for concurrent multi-user traffic:
+- **Deployment & scaling** — containerized and orchestrated (K8s/ECS), with the existing CI (test-only today,
+  see the README's Testing section) extended into an actual CD pipeline.
+- **Secrets management** — `.env` files are fine for a prototype, not for a real deploy; a real secrets manager
+  (Vault or a cloud-native equivalent) instead.
+- **Backpressure & rate limiting.** `asyncio.gather` concurrency is validated for one request's 10 acquirers
+  (see the README's Architecture section), not for N simultaneous users each firing a full profile run and
+  hitting Anthropic/opencode-go concurrently. No request queueing or throttling today, and no protection
+  against concurrent requests racing on the same `output/<slug>/` path (already a documented last-writer-wins
+  gap in the README's Web UI section).
+- **Health checks & alerting.** Langfuse tracing gives observability (what happened) but there's no alerting
+  layer (get paged when something's wrong) and no `/health`/readiness endpoint for an orchestrator to use.
+
+**Auth & multi-user.** If this became an actual internal tool rather than a prototype: authentication and
+per-user run history, neither of which exist today or were in scope for a take-home.
