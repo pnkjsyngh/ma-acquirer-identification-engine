@@ -98,6 +98,41 @@ runs identically with these unset.
 
 ## Architecture
 
+Bird's-eye view first, the request/response loop plus the two side-branches, then the pipeline detail below.
+
+```mermaid
+%%{init: {'themeVariables': {'fontSize': '18px'}}}%%
+flowchart LR
+    TRACE[("Tracing")]
+    FEEDBACK["Feedback\n(relevant / not relevant\n+ optional comment)"]
+
+    USER(("User"))
+    UI["Web UI / CLI"]
+    DET["Deterministic Reasoning\n(ranking)"]
+    AGENT["Agentic Reasoning\n(Stage 1 + Stage 2)"]
+    RESULTS["Ranked results +\nrationale"]
+
+    AGENT -.-> TRACE
+    UI -.-> FEEDBACK -.-> TRACE
+
+    USER --> UI --> DET --> AGENT --> RESULTS --> UI --> USER
+
+    classDef actorNode fill:#e3f2fd,stroke:#1565c0,color:#0d1b2a
+    classDef uiNode fill:#ede7f6,stroke:#4527a0,color:#0d1b2a
+    classDef deterministicNode fill:#e8f5e9,stroke:#2e7d32,color:#0d1b2a
+    classDef agentNode fill:#fff3e0,stroke:#ef6c00,color:#0d1b2a
+    classDef sideNode fill:#fce4ec,stroke:#ad1457,color:#0d1b2a
+
+    class USER actorNode
+    class UI,RESULTS uiNode
+    class DET deterministicNode
+    class AGENT agentNode
+    class TRACE,FEEDBACK sideNode
+```
+<p align="center"><small><em>Figure 1 — System overview: the user-facing loop, with tracing and feedback as side-branches into the same trace store.</em></small></p>
+
+Now the pipeline itself, CSV to rationale:
+
 ```mermaid
 %%{init: {'themeVariables': {'fontSize': '18px'}}}%%
 flowchart TB
@@ -132,6 +167,7 @@ flowchart TB
     style STAGE1 stroke-dasharray: 5 5
     style STAGE2 stroke-dasharray: 5 5
 ```
+<p align="center"><small><em>Figure 2 — Pipeline: ranking hands off to a two-stage agentic loop, then a validate/ground step that can retry before a rationale ships.</em></small></p>
 
 **Ranking is deterministic, no LLM involved.** A two-tier fit score (sector adjacency, size, profile, recency,
 outcome quality, tag alignment) rolled up per acquirer with a confidence dampener so one lucky deal can't
@@ -206,6 +242,7 @@ sequenceDiagram
     Orchestrator->>Orchestrator: finalize dossier (Stage1Decision)
     note over Orchestrator: hands finalized dossier + reasoning trace<br/>to Stage 2 (bulk prose, no tools, no routing)
 ```
+<p align="center"><small><em>Figure 3 — Stage 1's tool loop: fixed evidence gathering (blue) versus the one dynamic-routing decision (amber).</em></small></p>
 
 ## Assumptions
 
