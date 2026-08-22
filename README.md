@@ -17,6 +17,9 @@ MOCK_LLM=1 ./run.sh rank --profile healthcare_services_200mm
 
 # Custom target profile
 ./run.sh rank --sector "Medical Devices" --deal-size-mm 300 --geography Midwest
+
+# Compare two target profiles side by side
+./run.sh rank --compare healthcare_services_200mm health_it_150mm_national
 ```
 
 `run.sh` creates/reuses a `.venv`, installs dependencies, and loads `.env` automatically -- no other setup.
@@ -27,16 +30,28 @@ Output lands in `output/<profile_slug>/`: `summary.md` (ranked table), `01_<acqu
 `./run.sh enrich` re-runs the one-time Wikipedia pre-fetch for all acquirers -- not required to run the ranker;
 the cache is already committed at `data/enrichment_cache.json`.
 
+`--compare SLUG_A SLUG_B` runs both target profiles' full pipelines concurrently (`app/main.py::compare_profiles`,
+via `asyncio.gather` -- each profile already runs its own acquirers concurrently internally) and writes a
+side-by-side overlap summary to `output/compare_<slug_a>_vs_<slug_b>/comparison.md`, alongside each profile's
+normal `output/<slug>/` directory. Only accepts known `--profile` slugs from `data/synthetic_profiles.json`,
+not arbitrary custom profiles.
+
 ### Web UI (optional)
 
 ```bash
 MOCK_LLM=1 ./run.sh serve --port 8000   # or drop MOCK_LLM=1 for real synthesis
 ```
 
-Open `http://localhost:8000/` -- a single-page form (pick a synthetic profile or enter a custom one), a ranked
-table, and an expandable rationale per acquirer. Thin wrapper around the same CLI pipeline (`POST /rank` calls
-the same `run_profile` the CLI uses and returns `results.json`'s contents) -- no separate logic, no persistence
-beyond the existing `output/` directory. Two identical requests racing for the same profile slug is a benign
+Open `http://localhost:8000/` -- two tabs:
+
+- **Rank**: pick a synthetic profile or enter a custom one, get a ranked table and an expandable rationale card
+  per acquirer. Each card has a "Relevant" / "Not relevant" flag button (see Observability & feedback below).
+- **Compare**: pick two profiles, get two side-by-side ranked lists (same acquirer cards, same flag buttons)
+  with an overlap count/list and each profile's completion time.
+
+Both tabs are a thin wrapper around the same CLI pipeline (`POST /rank` / `POST /compare` call the same
+`run_profile` / `compare_profiles` functions the CLI uses) -- no separate logic, no persistence beyond the
+existing `output/` directory. Two identical requests racing for the same profile slug is a benign
 last-writer-wins race on that directory, same as running the CLI twice concurrently -- not specially handled.
 
 ### Environment variables
@@ -49,6 +64,10 @@ See `.env.example` for the full list with defaults. The two that matter for a li
 | `OPENCODE_API_KEY` | Yes (unless `STAGE2_BACKEND=anthropic`) | Stage 2: bulk rationale synthesis |
 
 Never commit `.env` -- it's gitignored. Copy `.env.example` to `.env` and fill in real values.
+
+Optional: `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` / `LANGFUSE_BASE_URL` enable tracing (see
+Observability & feedback below). Entirely optional -- everything, including `MOCK_LLM=1` and the test suite,
+runs identically with these unset.
 
 ## Architecture
 
@@ -64,7 +83,9 @@ flowchart LR
         W -->|no| S2["Stage 2: opencode-go\nbulk prose,\nno tools"]
     end
 
-    S2 --> OUT["output.py\nvalidate (Pydantic)\n→ markdown/JSON"]
+    S2 --> VAL{"output.py\nvalidate (Pydantic)\n+ grounding.py\n(citations trace to CSV?)"}
+    VAL -->|fail| S2
+    VAL -->|pass| OUT["markdown / JSON\n+ CSV row per citation"]
 ```
 
 **Ranking is deterministic, no LLM involved** -- a two-tier fit score (sector adjacency, size, profile, recency,
@@ -90,6 +111,11 @@ tool use and no LLM-driven routing -- just a schema-constrained wrapper around o
   which is where the actual token cost lives, hence the cheaper model (`STAGE2_BACKEND=anthropic` as fallback).
 - Output validates against `RationaleOutput` (`app/schemas.py`) with a repair/retry loop on failure. The
   ranking layer, not the LLM, sets Conviction (High/Medium/Low by rank) -- the LLM only justifies it.
+- **Precedent-activity citations are grounded, not just schema-checked.** `app/grounding.py` verifies every
+  cited precedent deal actually exists in the acquirer's real deal history (matched by target + year against
+  the dossier the LLM was given) before output is accepted. A fabricated or mismatched citation is treated
+  exactly like a schema violation -- one retry, then a hard failure for that acquirer -- rather than silently
+  reaching the report. See Grounding & validation below.
 
 ## Assumptions
 
@@ -122,12 +148,51 @@ primary driver of which sector a deal even counts as relevant. `tag_alignment` i
 Spearman rank correlation: `docs/weight_sensitivity.md` (reproduce with `python scripts/weight_sensitivity.py`
 and `python scripts/plot_weight_sensitivity.py`).
 
+## Grounding & validation
+
+Every rationale goes through two independent checks before it's accepted, both automated, neither an LLM call:
+
+- **Schema validation** (`app/output.py::validate_rationale`, backed by `RationaleOutput` in `app/schemas.py`) --
+  structural correctness (required sections, minimum 2 risk flags, etc.) and a business rule the schema alone
+  can't express: the LLM's stated Conviction level must match the rank-derived level the ranking layer computed.
+- **Citation grounding** (`app/grounding.py`) -- every cited precedent deal in `precedent_activity` is checked
+  against the acquirer's real deal history (the dossier the LLM was actually given), matched by `(target, year)`
+  -- confirmed unique per acquirer across the full 500-row dataset. `valuation_context` medians are diffed
+  against the dossier's deterministically-computed values with a small tolerance. Both failure modes trigger the
+  same retry-with-correction path as a schema violation; a citation that's still wrong after one retry raises a
+  hard `RationaleGenerationError` for that acquirer rather than shipping.
+
+Every accepted citation is also annotated with the CSV row it came from (`app/grounding.py::annotate_precedent_activity`), rendered as "CSV row N" in the markdown output, `results.json`, and the web UI's precedent
+activity table -- so a reviewer can spot-check any citation directly against `data/raw/ma_transactions_500.csv`
+without re-deriving anything.
+
+What this doesn't cover: numbers embedded in free-text prose (`acquirer_overview`, `risk_flags[].evidence`) --
+extracting and verifying those would need real NLP/regex work, scoped out as a Stretch item (see below). A
+separate, no-LLM-call eval suite (`tests/test_grounding.py`, runs in CI) also checks for near-duplicate
+rationale text across acquirers within one run, catching templated/generic LLM output.
+
+## Observability & feedback
+
+Optional Langfuse tracing (`app/tracing.py`, the only file that imports the `langfuse` SDK) -- enabled by
+setting `LANGFUSE_PUBLIC_KEY`/`LANGFUSE_SECRET_KEY`, a safe no-op otherwise (including under `MOCK_LLM=1` and
+in CI, neither of which sets these). One trace per `run_profile` call, with all 10 acquirers nested underneath
+as spans, each with Stage 1/Stage 2 as nested generations recording normalized token usage (and, for
+`gpt-5.6-luna`, self-computed cost -- Langfuse's own auto-pricing doesn't compute it for that model's custom
+tier).
+
+Each acquirer card in the web UI has "Relevant" / "Not relevant" buttons that attach a score to that acquirer's
+trace span via `POST /feedback` (`trace_id`/`observation_id` round-tripped through `results.json`). This is
+**trace-attached feedback only** -- an annotation visible in the Langfuse dashboard -- not a closed-loop system
+that changes future rankings (that's `docs/extensions.md`'s scope, deliberately not built here).
+
 ## Known limitations
 
-- **Grounding isn't machine-verified end-to-end.** A manual spot-check (Atrium Health) confirmed every cited
-  deal, multiple, and geographic count traces exactly to the CSV, with one 0.1x rounding slip on an aggregate
-  range (9.3x cited vs. 9.2x actual) -- not a fabrication, but no automated numeric-diff validator checks every
-  figure on every run. First thing to add with more time.
+- **Grounding covers structured citations, not free-text prose.** `precedent_activity` and `valuation_context`
+  are checked automatically on every run (see Grounding & validation above). Numbers embedded in prose fields
+  (`acquirer_overview`, `risk_flags[].evidence`) aren't automatically verified -- a manual spot-check (Atrium
+  Health) confirmed those traced correctly too, with one 0.1x rounding slip on an aggregate range (9.3x cited
+  vs. 9.2x actual), but that check isn't automated. A fuller citation validator extending into free text is a
+  Stretch item.
 - **Sector adjacency is a proxy** (buyer co-occurrence), not a direct measure of strategic adjacency. The IDF
   downweight sharpens it but doesn't eliminate the approximation.
 - **Wikipedia enrichment covers 70/107 acquirers**, skewed toward large PE sponsors and public strategics.
@@ -135,10 +200,17 @@ and `python scripts/plot_weight_sensitivity.py`).
   exclusion catch known name-collisions but don't eliminate the risk entirely.
 - **`STAGE2_BACKEND=anthropic` (opencode-go fallback) is implemented but not live-tested** -- same call shape
   Stage 1 already uses, but hasn't itself been run against a real opencode-go outage.
-- **No feedback loop, no web UI** (arbitrary profiles work via CLI flags already), **no MCP exposure** --
-  scoped out to stay within the assessment's intended effort level.
-- **Weights are documented assumptions, checked for sensitivity but not fitted** -- the sweep above shows how
-  robust the ranking is to each weight, not that 0.30/0.25/0.20/... is objectively optimal.
+- **No closed-loop feedback** -- the "Relevant"/"Not relevant" flags are trace-attached annotations (see
+  Observability & feedback above), not a system that changes future rankings. That fuller version, plus search-
+  augmented enrichment beyond Wikipedia, are documented as future directions in `docs/extensions.md`, not built.
+- **`WEIGHTS` (`app/features.py`) are hardcoded, not externalized to a config file, and are documented
+  assumptions rather than fitted values** -- the sensitivity sweep above shows how robust the ranking is to
+  each weight, not that 0.30/0.25/0.20/... is objectively optimal, and changing them today requires a code
+  edit, not a config change.
+- **No cost-per-run figure surfaced in the app or the UI.** Token usage and cost are visible per call in the
+  Langfuse dashboard when tracing is enabled; the app itself doesn't retain or display an aggregate number.
+- **No MCP exposure** -- this app owns both the tools and the only client, so MCP would add protocol overhead
+  with no functional benefit here; scoped out deliberately, not a gap.
 
 ## Non-determinism handling
 
@@ -158,7 +230,19 @@ and `python scripts/plot_weight_sensitivity.py`).
 MOCK_LLM=1 python -m pytest tests/ -q
 ```
 
-33 tests covering the ranking/feature layer, the tool schemas and dispatch, the adjacent-sector-candidate
-computation, and the full pipeline under `MOCK_LLM=1` -- including a test that specifically proves the
-widen-to-adjacent-sector routing decision fires conditionally (not always, not never) for a real thin-evidence
-acquirer, not just that the code path exists.
+65 tests, no live API calls needed (`MOCK_LLM=1` and no Langfuse keys, which is also CI's exact condition --
+see `.github/workflows/tests.yml`), covering:
+
+- The ranking/feature layer, tool schemas and dispatch, and adjacent-sector-candidate computation
+  (`test_features.py`, `test_ranking.py`, `test_tools.py`).
+- The full pipeline under `MOCK_LLM=1`, including a test that specifically proves the widen-to-adjacent-sector
+  routing decision fires conditionally (not always, not never) for a real thin-evidence acquirer, not just that
+  the code path exists (`test_output.py`, `test_main.py`).
+- Grounding checks, both the "accept a real citation" and "reject a fabricated one" paths, independently at the
+  `validate_rationale`/`app.grounding` level and end-to-end against real generated output (`test_output.py`,
+  `test_grounding.py`).
+- The web UI's `/rank`, `/compare`, and `/feedback` routes, and that tracing being disabled never breaks
+  anything (`test_server.py`, `test_tracing.py`).
+
+Server-route tests redirect all filesystem writes to `tmp_path` -- the app itself never runs `pytest` against
+its own default `output/` directory, so the test suite can't clobber real generated output.
