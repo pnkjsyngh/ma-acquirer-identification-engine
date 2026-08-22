@@ -40,6 +40,9 @@ def test_index_returns_html():
 
 def test_feedback_not_recorded_without_langfuse_configured(monkeypatch):
     monkeypatch.delenv("LANGFUSE_PUBLIC_KEY", raising=False)
-    response = client.post("/feedback", json={"trace_id": "abc", "observation_id": "def", "flagged": True})
+    response = client.post(
+        "/feedback",
+        json={"trace_id": "abc", "observation_id": "def", "relevant": False, "comment": "not a good fit"},
+    )
     assert response.status_code == 200
     assert response.json() == {"recorded": False}

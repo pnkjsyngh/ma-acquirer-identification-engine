@@ -59,7 +59,8 @@ class RankRequest(BaseModel):
 class FeedbackRequest(BaseModel):
     trace_id: str | None = None
     observation_id: str | None = None
-    flagged: bool = True
+    relevant: bool = True
+    comment: str | None = None
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -87,5 +88,5 @@ async def rank(request: RankRequest) -> dict:
 
 @app.post("/feedback")
 async def feedback(request: FeedbackRequest) -> dict:
-    recorded = tracing.create_score(request.trace_id, request.observation_id, request.flagged)
+    recorded = tracing.create_score(request.trace_id, request.observation_id, request.relevant, request.comment)
     return {"recorded": recorded}

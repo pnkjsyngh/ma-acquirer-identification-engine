@@ -124,22 +124,31 @@
 
   .flag-row {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     border-top: 1px solid var(--border);
     padding-top: 12px;
   }
+  .flag-comment {
+    flex: 1 1 200px;
+    min-width: 160px;
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 0.85rem;
+  }
   .flag-btn {
     background: #fff;
-    color: #7a1f1f;
-    border: 1px solid #f5c6cb;
     border-radius: 6px;
     padding: 6px 12px;
     font-size: 0.85rem;
     cursor: pointer;
   }
+  .flag-btn-relevant { color: #0f7a3d; border: 1px solid #bfe3cd; }
+  .flag-btn-not-relevant { color: #7a1f1f; border: 1px solid #f5c6cb; }
   .flag-btn:disabled { color: var(--muted); border-color: var(--border); cursor: default; }
-  .flag-status { font-size: 0.85rem; color: var(--muted); }
+  .flag-status { font-size: 0.85rem; color: var(--muted); flex-basis: 100%; }
 </style>
 </head>
 <body>
@@ -294,10 +303,12 @@
 
   function renderFlagControl(a) {
     if (!a.trace_id) return "";
+    var idAttrs = 'data-trace-id="' + esc(a.trace_id) + '" data-observation-id="' + esc(a.observation_id || "") + '"';
     return (
       '<section class="flag-row">' +
-      '<button type="button" class="flag-btn" data-trace-id="' + esc(a.trace_id) +
-      '" data-observation-id="' + esc(a.observation_id || "") + '">Flag as irrelevant</button>' +
+      '<input type="text" class="flag-comment" placeholder="Optional comment...">' +
+      '<button type="button" class="flag-btn flag-btn-relevant" data-relevant="true" ' + idAttrs + '>Relevant</button>' +
+      '<button type="button" class="flag-btn flag-btn-not-relevant" data-relevant="false" ' + idAttrs + '>Not relevant</button>' +
       '<span class="flag-status"></span>' +
       "</section>"
     );
@@ -368,8 +379,11 @@
   async function onFlagClick(event) {
     var btn = event.target;
     if (!btn.classList.contains("flag-btn")) return;
-    var status = btn.parentElement.querySelector(".flag-status");
-    btn.disabled = true;
+    var row = btn.parentElement;
+    var status = row.querySelector(".flag-status");
+    var commentInput = row.querySelector(".flag-comment");
+    var buttons = row.querySelectorAll(".flag-btn");
+    buttons.forEach(function (b) { b.disabled = true; });
     try {
       var res = await fetch("/feedback", {
         method: "POST",
@@ -377,13 +391,17 @@
         body: JSON.stringify({
           trace_id: btn.dataset.traceId,
           observation_id: btn.dataset.observationId || null,
-          flagged: true,
+          relevant: btn.dataset.relevant === "true",
+          comment: (commentInput.value || "").trim() || null,
         }),
       });
       var data = await res.json();
-      status.textContent = data.recorded ? "Flagged" : "Not recorded (tracing unavailable)";
+      status.textContent = data.recorded
+        ? (btn.dataset.relevant === "true" ? "Marked relevant" : "Marked not relevant")
+        : "Not recorded (tracing unavailable)";
+      commentInput.disabled = true;
     } catch (err) {
-      btn.disabled = false;
+      buttons.forEach(function (b) { b.disabled = false; });
       status.textContent = "Failed to record.";
     }
   }

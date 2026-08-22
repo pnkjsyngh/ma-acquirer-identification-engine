@@ -81,18 +81,21 @@ def current_ids() -> tuple[str | None, str | None]:
     return client.get_current_trace_id(), client.get_current_observation_id()
 
 
-def create_score(trace_id: str | None, observation_id: str | None, flagged: bool) -> bool:
+def create_score(
+    trace_id: str | None, observation_id: str | None, relevant: bool, comment: str | None = None
+) -> bool:
     if not is_enabled() or not trace_id:
         return False
 
     from langfuse import get_client
 
     get_client().create_score(
-        name="flagged_irrelevant",
-        value=1.0 if flagged else 0.0,
+        name="acquirer_relevant",
+        value=1.0 if relevant else 0.0,
         trace_id=trace_id,
         observation_id=observation_id,
         data_type="BOOLEAN",
+        comment=comment or None,
     )
     return True
 

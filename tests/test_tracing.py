@@ -33,6 +33,11 @@ def test_create_score_returns_false_without_trace_id(monkeypatch):
     assert tracing.create_score(None, None, True) is False
 
 
+def test_create_score_accepts_optional_comment_when_disabled(monkeypatch):
+    monkeypatch.delenv("LANGFUSE_PUBLIC_KEY", raising=False)
+    assert tracing.create_score("some-trace-id", "some-observation-id", False, "not a good fit") is False
+
+
 def test_flush_does_not_raise_when_disabled(monkeypatch):
     monkeypatch.delenv("LANGFUSE_PUBLIC_KEY", raising=False)
     tracing.flush()
