@@ -104,11 +104,11 @@ flowchart TB
     CSV[("500 M&A\ntransactions")] --> RANK["Deterministic Ranking\n(sector, size,\nrecency, track record)"]
     RANK --> S1
 
-    subgraph STAGE1["`**Stage 1** — higher reasoning model`"]
+    subgraph STAGE1["Stage 1 — higher reasoning model"]
         S1["Reason +\ngather evidence\n(tool calls)"] -->|thin evidence?| W{"Widen to\nadjacent sector?\n(tool call)"}
         W -->|yes| S1
     end
-    subgraph STAGE2["`**Stage 2** — smaller model`"]
+    subgraph STAGE2["Stage 2 — smaller model"]
         S2["Write rationale"]
     end
     W -->|no| S2
