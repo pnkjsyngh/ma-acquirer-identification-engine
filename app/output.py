@@ -143,6 +143,65 @@ Full rationale for each acquirer is in the numbered files in this folder.
 """
 
 
+def _profile_label(profile: dict) -> str:
+    label = f"{profile['sector']} (~${profile['deal_size_mm']:.0f}M)"
+    if profile.get("geography"):
+        label += f" | {profile['geography']}"
+    return label
+
+
+def _rank_lookup(ranked: pd.DataFrame) -> dict[str, dict]:
+    return {
+        row["acquirer"]: {"rank": i + 1, "score": row["score"], "acquirer_type": row["acquirer_type"]}
+        for i, row in ranked.reset_index(drop=True).iterrows()
+    }
+
+
+def render_comparison_markdown(
+    profile_a: dict,
+    profile_b: dict,
+    ranked_a: pd.DataFrame,
+    ranked_b: pd.DataFrame,
+    out_path_a: Path,
+    out_path_b: Path,
+) -> str:
+    """Side-by-side acquirer overlap between two target profiles. Structural only (rank/
+    score/type from the deterministic ranking) -- full per-acquirer rationale for each
+    profile already lives in its own output dir, linked at the bottom rather than
+    duplicated here."""
+    lookup_a, lookup_b = _rank_lookup(ranked_a), _rank_lookup(ranked_b)
+    overlap = set(lookup_a) & set(lookup_b)
+    all_acquirers = sorted(
+        set(lookup_a) | set(lookup_b),
+        key=lambda name: (lookup_a.get(name, {}).get("rank", 999), lookup_b.get(name, {}).get("rank", 999)),
+    )
+
+    def cell(name: str, lookup: dict) -> str:
+        r = lookup.get(name)
+        return f"#{r['rank']} ({r['score']:.3f})" if r else "-"
+
+    rows = "\n".join(
+        f"| {name} | {lookup_a.get(name, lookup_b.get(name))['acquirer_type']} | "
+        f"{cell(name, lookup_a)} | {cell(name, lookup_b)} |"
+        for name in all_acquirers
+    )
+
+    return f"""# Acquirer Comparison
+
+**Profile A:** {_profile_label(profile_a)}
+**Profile B:** {_profile_label(profile_b)}
+
+Overlap: {len(overlap)}/{max(len(lookup_a), len(lookup_b))} acquirers appear in both top lists.
+
+| Acquirer | Type | Profile A | Profile B |
+|---|---|---|---|
+{rows}
+
+Full rationale for Profile A: [{out_path_a}/summary.md]({out_path_a}/summary.md)
+Full rationale for Profile B: [{out_path_b}/summary.md]({out_path_b}/summary.md)
+"""
+
+
 def write_outputs(
     profile_slug: str,
     target_profile: dict,
