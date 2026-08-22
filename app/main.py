@@ -95,12 +95,24 @@ def main() -> None:
 
     sub.add_parser("enrich", help="Pre-fetch Wikipedia summaries for all acquirers (one-time, offline after)")
 
+    serve_p = sub.add_parser("serve", help="Run the minimal web UI")
+    serve_p.add_argument("--host", default="127.0.0.1")
+    serve_p.add_argument("--port", type=int, default=8000)
+
     args = parser.parse_args()
 
     if args.command == "enrich":
         from app.enrich import main as enrich_main
 
         enrich_main()
+        return
+
+    if args.command == "serve":
+        import uvicorn
+
+        from app.server import app as web_app
+
+        uvicorn.run(web_app, host=args.host, port=args.port)
         return
 
     df = load_transactions(DEFAULT_CSV_PATH)

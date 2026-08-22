@@ -5,6 +5,7 @@
 #   ./run.sh rank --all-profiles
 #   MOCK_LLM=1 ./run.sh rank --profile healthcare_services_default   # no API key needed
 #   ./run.sh enrich
+#   ./run.sh serve --port 8000
 
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"

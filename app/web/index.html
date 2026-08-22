@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M&A Acquirer Identification</title>
+<style>
+  :root {
+    --border: #d9dde3;
+    --bg-card: #f7f8fa;
+    --text: #1c2430;
+    --muted: #5a6474;
+    --accent: #2563eb;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 24px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: var(--text);
+    background: #ffffff;
+    line-height: 1.5;
+  }
+  .wrap { max-width: 960px; margin: 0 auto; }
+  h1 { font-size: 1.5rem; margin: 0 0 4px; }
+  .subtitle { color: var(--muted); margin: 0 0 24px; }
+
+  form {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    background: var(--bg-card);
+    margin-bottom: 20px;
+  }
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-weight: 600; margin-bottom: 4px; font-size: 0.9rem; }
+  .field input, .field select {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 1rem;
+    background: #fff;
+  }
+  .hidden { display: none; }
+  #custom-fields {
+    border: 1px dashed var(--border);
+    border-radius: 6px;
+    padding: 14px;
+    margin-bottom: 14px;
+  }
+  button {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 10px 18px;
+    font-size: 1rem;
+    cursor: pointer;
+  }
+  button:disabled { background: #93b4f5; cursor: not-allowed; }
+
+  #loading {
+    padding: 14px;
+    border-radius: 6px;
+    background: #eef4ff;
+    border: 1px solid #c7d8fb;
+    margin-bottom: 20px;
+  }
+  #error {
+    padding: 14px;
+    border-radius: 6px;
+    background: #fdecea;
+    border: 1px solid #f5c6cb;
+    color: #7a1f1f;
+    margin-bottom: 20px;
+    white-space: pre-wrap;
+  }
+
+  table { border-collapse: collapse; width: 100%; margin-bottom: 20px; background: #fff; }
+  th, td {
+    border: 1px solid var(--border);
+    padding: 8px 10px;
+    text-align: left;
+    vertical-align: top;
+    font-size: 0.92rem;
+  }
+  th { background: #eef1f5; }
+  .rank-table { margin-top: 12px; }
+  .precedent-table { margin: 8px 0; }
+
+  .conviction { font-weight: 600; }
+  .level-high { color: #0f7a3d; }
+  .level-med  { color: #b06a00; }
+  .level-low  { color: #b3261e; }
+
+  .acquirer-card {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg-card);
+    margin-bottom: 10px;
+    padding: 0;
+  }
+  .acquirer-card summary {
+    cursor: pointer;
+    padding: 12px 16px;
+    font-weight: 600;
+    font-size: 1rem;
+  }
+  .acquirer-card .card-body { padding: 0 16px 16px; }
+  .acquirer-card section { margin-top: 16px; }
+  .acquirer-card h3 {
+    font-size: 0.82rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    margin: 0 0 6px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 4px;
+  }
+  .acquirer-card p { margin: 6px 0; }
+  .acquirer-card ul { margin: 6px 0; padding-left: 20px; }
+  .acquirer-card a { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>M&A Acquirer Identification</h1>
+  <p class="subtitle">Rank the 10 most likely acquirers for a target company profile.</p>
+
+  <form id="rank-form">
+    <div class="field">
+      <label for="profile-select">Profile</label>
+      <select id="profile-select">
+        <option value="healthcare_services_default">Healthcare Services ($200M)</option>
+        <option value="health_it_national">Health IT ($150M)</option>
+        <option value="medical_devices_midwest">Medical Devices ($300M)</option>
+        <option value="dental_southeast">Dental ($80M)</option>
+        <option value="behavioral_health_mountain_west">Behavioral Health ($250M)</option>
+        <option value="home_health_southeast">Home Health/Hospice ($120M)</option>
+        <option value="physician_groups_northeast">Physician Groups ($180M)</option>
+        <option value="revenue_cycle_national">Revenue Cycle ($90M)</option>
+        <option value="health_insurance_multi_regional">Health Insurance ($350M)</option>
+        <option value="pharma_biotech_west_coast">Pharma/Biotech ($220M)</option>
+        <option value="__custom__">Custom...</option>
+      </select>
+    </div>
+
+    <div id="custom-fields" class="hidden">
+      <div class="field">
+        <label for="sector">Sector</label>
+        <input type="text" id="sector" placeholder="e.g. Healthcare Services">
+      </div>
+      <div class="field">
+        <label for="deal-size">Deal size ($M)</label>
+        <input type="number" id="deal-size" min="0" step="any" placeholder="e.g. 200">
+      </div>
+      <div class="field">
+        <label for="geography">Geography (optional)</label>
+        <input type="text" id="geography" placeholder="e.g. Midwest">
+      </div>
+    </div>
+
+    <button type="submit" id="submit-btn">Find Acquirers</button>
+  </form>
+
+  <div id="loading" class="hidden">Ranking acquirers... this can take up to a minute.</div>
+  <div id="error" class="hidden"></div>
+  <div id="results"></div>
+</div>
+
+<script>
+  function esc(value) {
+    return String(value == null ? "" : value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  function toggleCustom() {
+    var isCustom = document.getElementById("profile-select").value === "__custom__";
+    document.getElementById("custom-fields").classList.toggle("hidden", !isCustom);
+  }
+
+  function buildRequestBody() {
+    var sel = document.getElementById("profile-select").value;
+    if (sel !== "__custom__") return { slug: sel };
+    var sector = document.getElementById("sector").value.trim();
+    var dealSize = document.getElementById("deal-size").value.trim();
+    var geography = document.getElementById("geography").value.trim();
+    if (!sector || !dealSize) {
+      showError("Custom profile requires a sector and a deal size.");
+      return null;
+    }
+    var body = { sector: sector, deal_size_mm: Number(dealSize) };
+    if (geography) body.geography = geography;
+    return body;
+  }
+
+  function setLoading(on) {
+    document.getElementById("submit-btn").disabled = on;
+    document.getElementById("loading").classList.toggle("hidden", !on);
+  }
+
+  function showError(msg) {
+    var el = document.getElementById("error");
+    el.textContent = msg;
+    el.classList.remove("hidden");
+  }
+
+  function hideError() {
+    document.getElementById("error").classList.add("hidden");
+  }
+
+  function formatScore(score) {
+    var n = Number(score);
+    return Number.isFinite(n) ? n.toFixed(3) : "n/a";
+  }
+
+  function formatMoney(value) {
+    var n = Number(value);
+    return Number.isFinite(n) ? Math.round(n).toLocaleString() : "n/a";
+  }
+
+  function fmtOpt(value, suffix) {
+    if (value === null || value === undefined || value === "") return "n/a";
+    var n = Number(value);
+    if (!Number.isFinite(n)) return "n/a";
+    return n.toFixed(1) + (suffix || "");
+  }
+
+  function convictionBadge(level) {
+    var cls = level === "High" ? "level-high" : level === "Medium" ? "level-med" : level === "Low" ? "level-low" : "";
+    return '<span class="conviction ' + cls + '">' + esc(level || "n/a") + "</span>";
+  }
+
+  function renderTable(acquirers) {
+    var rows = acquirers.map(function (a) {
+      return "<tr><td>" + a.rank + "</td><td>" + esc(a.acquirer) + "</td><td>" + esc(a.acquirer_type) +
+        "</td><td>" + formatScore(a.score) + "</td><td>" + convictionBadge(a.conviction && a.conviction.level) + "</td></tr>";
+    }).join("");
+    return '<table class="rank-table"><thead><tr><th>Rank</th><th>Acquirer</th><th>Type</th><th>Score</th><th>Conviction</th></tr></thead><tbody>' +
+      rows + "</tbody></table>";
+  }
+
+  function renderPrecedent(items) {
+    if (!items || !items.length) {
+      return "<p>No directly comparable precedent transactions in the dataset.</p>";
+    }
+    var rows = items.map(function (p) {
+      return "<tr><td>" + esc(p.year) + "</td><td>" + esc(p.target) + "</td><td>" + esc(p.sector) +
+        "</td><td>$" + formatMoney(p.deal_size_mm) + "M</td><td>" + esc(p.deal_type) +
+        "</td><td>" + fmtOpt(p.ev_ebitda_multiple, "x") + "</td></tr>";
+    }).join("");
+    return '<table class="precedent-table"><thead><tr><th>Year</th><th>Target</th><th>Sector</th><th>Deal Size</th><th>Deal Type</th><th>EV/EBITDA</th></tr></thead><tbody>' +
+      rows + "</tbody></table>";
+  }
+
+  function renderRisks(risks) {
+    if (!risks || !risks.length) return "<p>None.</p>";
+    return "<ul>" + risks.map(function (r) {
+      return "<li><strong>" + esc(r.risk) + "</strong>: " + esc(r.evidence) + "</li>";
+    }).join("") + "</ul>";
+  }
+
+  function renderSources(sources) {
+    if (!sources || !sources.length) return "";
+    var items = sources.map(function (s) {
+      return '<li><a href="' + esc(s.source_url) + '" target="_blank" rel="noopener noreferrer">' + esc(s.fact) + "</a></li>";
+    }).join("");
+    return "<section><h3>Sources</h3><ul>" + items + "</ul></section>";
+  }
+
+  function renderCard(a) {
+    var conviction = a.conviction || {};
+    var val = a.valuation_context || {};
+    return (
+      '<details class="acquirer-card">' +
+      "<summary>" + a.rank + ". " + esc(a.acquirer) + " (" + esc(a.acquirer_type) + ")</summary>" +
+      '<div class="card-body">' +
+        "<section><h3>Conviction</h3><p>" + convictionBadge(conviction.level) + " " + esc(conviction.rationale) + "</p></section>" +
+        "<section><h3>Acquirer Overview</h3><p>" + esc(a.acquirer_overview) + "</p></section>" +
+        "<section><h3>Strategic Fit Thesis</h3><p>" + esc(a.strategic_fit_thesis) + "</p></section>" +
+        "<section><h3>Precedent Activity</h3>" + renderPrecedent(a.precedent_activity) + "</section>" +
+        "<section><h3>Valuation Context</h3><p>Median EV/EBITDA: " + fmtOpt(val.median_ev_ebitda, "x") +
+          " &middot; Median EV/Revenue: " + fmtOpt(val.median_ev_revenue, "x") + "</p><p>" + esc(val.narrative) + "</p></section>" +
+        "<section><h3>Risk Flags</h3>" + renderRisks(a.risk_flags) + "</section>" +
+        renderSources(a.external_sources) +
+      "</div></details>"
+    );
+  }
+
+  function renderResults(data) {
+    var target = data.target_profile || {};
+    var acquirers = data.acquirers || [];
+    var heading = target.sector
+      ? "<h2>Ranked acquirers for " + esc(target.sector) + " (~$" + formatMoney(target.deal_size_mm) + "M)</h2>"
+      : "<h2>Results</h2>";
+    document.getElementById("results").innerHTML =
+      heading + renderTable(acquirers) + acquirers.map(renderCard).join("");
+  }
+
+  async function onSubmit(event) {
+    event.preventDefault();
+    hideError();
+    var body = buildRequestBody();
+    if (!body) return;
+    setLoading(true);
+    try {
+      var res = await fetch("/rank", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        var detail = "Request failed with status " + res.status;
+        try {
+          var data = await res.json();
+          if (data && data.detail) detail = data.detail;
+        } catch (e) { /* ignore */ }
+        throw new Error(detail);
+      }
+      renderResults(await res.json());
+    } catch (err) {
+      showError(err.message || "Something went wrong.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  document.getElementById("rank-form").addEventListener("submit", onSubmit);
+  document.getElementById("profile-select").addEventListener("change", toggleCustom);
+</script>
+</body>
+</html>
