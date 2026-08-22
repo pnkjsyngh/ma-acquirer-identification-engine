@@ -43,7 +43,13 @@ def resolve_profile(slug: str | None, sector: str | None, deal_size_mm: float | 
 
 
 def default_slug(target_profile: dict) -> str:
-    return target_profile["sector"].lower().replace("/", "-").replace(" ", "_")
+    def clean(s: str) -> str:
+        return s.lower().replace("/", "-").replace(" ", "_")
+
+    parts = [clean(target_profile["sector"]), f"{target_profile['deal_size_mm']:g}mm"]
+    if target_profile.get("geography"):
+        parts.append(clean(target_profile["geography"]))
+    return "_".join(parts)
 
 
 async def run_profile(
