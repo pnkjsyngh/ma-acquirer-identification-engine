@@ -16,6 +16,7 @@ import sys
 import time
 from pathlib import Path
 
+from app import tracing
 from app.data import DEFAULT_CSV_PATH, load_transactions
 from app.enrich import get_external_facts, load_enrichment_cache
 from app.evidence import compute_adjacent_candidates
@@ -75,27 +76,41 @@ async def run_profile(
     ranked, deal_fit_df = rank_acquirers(df, target_profile, top_n=top_n)
     logger.info("Ranked top %d acquirers in %.2fs", top_n, time.time() - ranking_started)
 
-    async def _one(rank: int, row) -> tuple[str, dict]:
+    async def _one(rank: int, row) -> tuple[str, dict, str | None, str | None]:
         acquirer = row["acquirer"]
         dossier = build_dossier(deal_fit_df, acquirer, target_profile)
         dossier["thin_evidence"] = dossier["relevant_deals"] < ELIGIBILITY_DEAL_COUNT
         dossier["adjacent_candidate_deals"] = compute_adjacent_candidates(deal_fit_df, acquirer, target_profile)
         conviction_level = conviction_level_for_rank(rank)
         external_facts = get_external_facts(acquirer, enrichment_cache)
-        rationale = await synthesize_rationale(target_profile, dossier, conviction_level, external_facts)
+        with tracing.start_observation("span", f"acquirer:{acquirer}"):
+            trace_id, observation_id = tracing.current_ids()
+            rationale = await synthesize_rationale(target_profile, dossier, conviction_level, external_facts)
         errors = validate_rationale(rationale, conviction_level)
         if errors:
             print(f"  [warn] {acquirer}: {'; '.join(errors)}", file=sys.stderr)
-        return acquirer, rationale
+        return acquirer, rationale, trace_id, observation_id
 
     logger.info("Synthesizing rationale for %d acquirers concurrently...", top_n)
-    tasks = [_one(i + 1, row) for i, row in ranked.reset_index(drop=True).iterrows()]
-    results = await asyncio.gather(*tasks)
-    rationales = dict(results)
+    with tracing.start_observation("span", f"run_profile:{slug}"):
+        # Tasks must be created (asyncio.gather -> ensure_future) while this span is the
+        # active context -- asyncio copies the current contextvars at task-creation time,
+        # which is how each acquirer's nested span below ends up parented under this one
+        # instead of becoming its own root trace.
+        tasks = [_one(i + 1, row) for i, row in ranked.reset_index(drop=True).iterrows()]
+        results = await asyncio.gather(*tasks)
+    rationales = {acquirer: rationale for acquirer, rationale, _, _ in results}
+    trace_ids = {acquirer: (trace_id, obs_id) for acquirer, _, trace_id, obs_id in results}
 
     elapsed = time.time() - started
     out_path = write_outputs(
-        slug, target_profile, ranked, rationales, output_dir=output_dir, elapsed_seconds=elapsed
+        slug,
+        target_profile,
+        ranked,
+        rationales,
+        output_dir=output_dir,
+        elapsed_seconds=elapsed,
+        trace_ids=trace_ids,
     )
     logger.info("Total time for %s: %.2fs", slug, elapsed)
     print(f"{target_profile['sector']} (~${target_profile['deal_size_mm']:.0f}M) -> {out_path} ({elapsed:.1f}s)")
@@ -154,11 +169,13 @@ def main() -> None:
                 await run_profile(df, profile, enrichment_cache, args.top_n, args.output_dir, slug=profile["slug"])
 
         asyncio.run(_run_all())
+        tracing.flush()
         return
 
     target_profile = resolve_profile(args.profile, args.sector, args.deal_size_mm, args.geography)
     slug = args.profile or default_slug(target_profile)
     asyncio.run(run_profile(df, target_profile, enrichment_cache, args.top_n, args.output_dir, slug=slug))
+    tracing.flush()
 
 
 if __name__ == "__main__":
