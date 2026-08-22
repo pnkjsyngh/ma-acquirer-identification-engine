@@ -21,9 +21,26 @@
     background: #ffffff;
     line-height: 1.5;
   }
-  .wrap { max-width: 960px; margin: 0 auto; }
+  .wrap { max-width: 960px; margin: 0 auto; transition: max-width 0.15s ease; }
+  .wrap.wide { max-width: 1400px; }
   h1 { font-size: 1.5rem; margin: 0 0 4px; }
   .subtitle { color: var(--muted); margin: 0 0 24px; }
+
+  .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 20px; }
+  .tab-btn {
+    background: none;
+    color: var(--muted);
+    border: none;
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
+    padding: 10px 4px;
+    margin-right: 20px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab-panel.hidden { display: none; }
 
   form {
     border: 1px solid var(--border);
@@ -77,7 +94,7 @@
     white-space: pre-wrap;
   }
 
-  table { border-collapse: collapse; width: 100%; margin-bottom: 20px; background: #fff; }
+  table { border-collapse: collapse; width: 100%; min-width: 480px; margin-bottom: 20px; background: #fff; }
   th, td {
     border: 1px solid var(--border);
     padding: 8px 10px;
@@ -149,12 +166,21 @@
   .flag-btn-not-relevant { color: #7a1f1f; border: 1px solid #f5c6cb; }
   .flag-btn:disabled { color: var(--muted); border-color: var(--border); cursor: default; }
   .flag-status { font-size: 0.85rem; color: var(--muted); flex-basis: 100%; }
+  .compare-columns { display: flex; gap: 24px; flex-wrap: wrap; margin-top: 16px; }
+  .compare-col { flex: 1 1 380px; min-width: 320px; overflow-x: auto; }
 </style>
 </head>
 <body>
 <div class="wrap">
   <h1>M&A Acquirer Identification</h1>
-  <p class="subtitle">Rank the 10 most likely acquirers for a target company profile.</p>
+
+  <div class="tabs" role="tablist">
+    <button type="button" class="tab-btn active" id="tab-btn-rank" role="tab" aria-selected="true">Rank</button>
+    <button type="button" class="tab-btn" id="tab-btn-compare" role="tab" aria-selected="false">Compare</button>
+  </div>
+
+  <div id="tab-panel-rank" class="tab-panel">
+    <p class="subtitle">Rank the top acquirers for a target company profile.</p>
 
   <form id="rank-form">
     <div class="field">
@@ -195,6 +221,27 @@
   <div id="loading" class="hidden">Ranking acquirers... this can take up to a minute.</div>
   <div id="error" class="hidden"></div>
   <div id="results"></div>
+  </div>
+
+  <div id="tab-panel-compare" class="tab-panel hidden">
+    <p class="subtitle">Side-by-side acquirer ranking for two different target profiles.</p>
+
+  <form id="compare-form">
+    <div class="field">
+      <label for="compare-select-a">Profile A</label>
+      <select id="compare-select-a"></select>
+    </div>
+    <div class="field">
+      <label for="compare-select-b">Profile B</label>
+      <select id="compare-select-b"></select>
+    </div>
+    <button type="submit" id="compare-submit-btn">Compare</button>
+  </form>
+
+  <div id="compare-loading" class="hidden">Comparing profiles... this can take up to a minute.</div>
+  <div id="compare-error" class="hidden"></div>
+  <div id="compare-results"></div>
+  </div>
 </div>
 
 <script>
@@ -210,6 +257,17 @@
   function toggleCustom() {
     var isCustom = document.getElementById("profile-select").value === "__custom__";
     document.getElementById("custom-fields").classList.toggle("hidden", !isCustom);
+  }
+
+  function showTab(name) {
+    var isRank = name === "rank";
+    document.getElementById("tab-panel-rank").classList.toggle("hidden", !isRank);
+    document.getElementById("tab-panel-compare").classList.toggle("hidden", isRank);
+    document.getElementById("tab-btn-rank").classList.toggle("active", isRank);
+    document.getElementById("tab-btn-compare").classList.toggle("active", !isRank);
+    document.getElementById("tab-btn-rank").setAttribute("aria-selected", String(isRank));
+    document.getElementById("tab-btn-compare").setAttribute("aria-selected", String(!isRank));
+    document.querySelector(".wrap").classList.toggle("wide", !isRank);
   }
 
   function buildRequestBody() {
@@ -257,6 +315,12 @@
     var n = Number(value);
     if (!Number.isFinite(n)) return "n/a";
     return n.toFixed(1) + (suffix || "");
+  }
+
+  function profileLabel(target) {
+    var label = esc(target.sector) + " (~$" + formatMoney(target.deal_size_mm) + "M)";
+    if (target.geography) label += " &middot; " + esc(target.geography);
+    return label;
   }
 
   function convictionBadge(level) {
@@ -407,9 +471,97 @@
     }
   }
 
+  function populateCompareSelect(id) {
+    var source = document.getElementById("profile-select");
+    var target = document.getElementById(id);
+    Array.from(source.options).forEach(function (opt) {
+      if (opt.value === "__custom__") return;
+      target.appendChild(opt.cloneNode(true));
+    });
+  }
+  populateCompareSelect("compare-select-a");
+  populateCompareSelect("compare-select-b");
+
+  function setCompareLoading(on) {
+    document.getElementById("compare-submit-btn").disabled = on;
+    document.getElementById("compare-loading").classList.toggle("hidden", !on);
+  }
+
+  function showCompareError(msg) {
+    var el = document.getElementById("compare-error");
+    el.textContent = msg;
+    el.classList.remove("hidden");
+  }
+
+  function hideCompareError() {
+    document.getElementById("compare-error").classList.add("hidden");
+  }
+
+  function renderCompareResults(data) {
+    var a = data.profile_a, b = data.profile_b, overlap = data.overlap;
+    var targetA = a.target_profile || {}, targetB = b.target_profile || {};
+    var labelA = profileLabel(targetA), labelB = profileLabel(targetB);
+    var heading = "<h3>Comparison: " + labelA + " vs " + labelB + "</h3>";
+    var overlapNote =
+      '<p class="subtitle">Overlap: ' + overlap.count + "/" + overlap.total +
+      " acquirers appear in both top lists" +
+      (overlap.acquirers.length ? " (" + overlap.acquirers.map(esc).join(", ") + ")" : "") + ".</p>";
+
+    function timingNote(profile) {
+      return typeof profile.elapsed_seconds === "number"
+        ? '<p class="subtitle">Completed in ' + profile.elapsed_seconds.toFixed(1) + "s</p>"
+        : "";
+    }
+
+    var colA =
+      '<div class="compare-col"><h3>' + labelA + "</h3>" + timingNote(a) + renderTable(a.acquirers) +
+      a.acquirers.map(renderCard).join("") + "</div>";
+    var colB =
+      '<div class="compare-col"><h3>' + labelB + "</h3>" + timingNote(b) + renderTable(b.acquirers) +
+      b.acquirers.map(renderCard).join("") + "</div>";
+    document.getElementById("compare-results").innerHTML =
+      heading + overlapNote + '<div class="compare-columns">' + colA + colB + "</div>";
+  }
+
+  async function onCompareSubmit(event) {
+    event.preventDefault();
+    hideCompareError();
+    var slugA = document.getElementById("compare-select-a").value;
+    var slugB = document.getElementById("compare-select-b").value;
+    if (slugA === slugB) {
+      showCompareError("Choose two different profiles.");
+      return;
+    }
+    setCompareLoading(true);
+    try {
+      var res = await fetch("/compare", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slug_a: slugA, slug_b: slugB }),
+      });
+      if (!res.ok) {
+        var detail = "Request failed with status " + res.status;
+        try {
+          var data = await res.json();
+          if (data && data.detail) detail = data.detail;
+        } catch (e) { /* ignore */ }
+        throw new Error(detail);
+      }
+      renderCompareResults(await res.json());
+    } catch (err) {
+      showCompareError(err.message || "Something went wrong.");
+    } finally {
+      setCompareLoading(false);
+    }
+  }
+
   document.getElementById("rank-form").addEventListener("submit", onSubmit);
   document.getElementById("profile-select").addEventListener("change", toggleCustom);
   document.getElementById("results").addEventListener("click", onFlagClick);
+  document.getElementById("compare-form").addEventListener("submit", onCompareSubmit);
+  document.getElementById("compare-results").addEventListener("click", onFlagClick);
+  document.getElementById("tab-btn-rank").addEventListener("click", function () { showTab("rank"); });
+  document.getElementById("tab-btn-compare").addEventListener("click", function () { showTab("compare"); });
 </script>
 </body>
 </html>
