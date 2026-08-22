@@ -35,6 +35,22 @@ def test_rank_unknown_slug_returns_4xx_not_500():
     assert "detail" in response.json()
 
 
+def test_compare_returns_both_profiles_and_overlap(tmp_path, monkeypatch):
+    monkeypatch.setattr(server_module, "_OUTPUT_DIR", str(tmp_path))
+    response = client.post("/compare", json={"slug_a": "healthcare_services_200mm", "slug_b": "health_it_150mm_national"})
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body["profile_a"]["acquirers"]) == 3  # matches server.py's _COMPARE_TOP_N
+    assert len(body["profile_b"]["acquirers"]) == 3
+    assert "count" in body["overlap"] and "total" in body["overlap"]
+
+
+def test_compare_unknown_slug_returns_4xx_not_500(tmp_path, monkeypatch):
+    monkeypatch.setattr(server_module, "_OUTPUT_DIR", str(tmp_path))
+    response = client.post("/compare", json={"slug_a": "healthcare_services_200mm", "slug_b": "not-a-real-slug"})
+    assert 400 <= response.status_code < 500
+
+
 def test_index_returns_html():
     response = client.get("/")
     assert response.status_code == 200

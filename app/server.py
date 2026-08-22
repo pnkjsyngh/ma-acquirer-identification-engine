@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -27,7 +28,7 @@ from app.data import DEFAULT_CSV_PATH, load_transactions
 from app.enrich import load_enrichment_cache
 from app.llm import RationaleGenerationError
 from app.logging_config import configure_logging
-from app.main import default_slug, resolve_profile, run_profile
+from app.main import compare_profiles, default_slug, resolve_profile, run_profile
 
 configure_logging()
 logger = logging.getLogger(__name__)
@@ -49,7 +50,13 @@ _enrichment_cache = load_enrichment_cache()
 _INDEX_HTML_PATH = Path(__file__).resolve().parent / "web" / "index.html"
 
 # Module-level so tests can redirect writes (e.g. to tmp_path) without touching real run output.
-_OUTPUT_DIR = "output"
+# Also reads OUTPUT_DIR from the environment so a manual/ad-hoc smoke test (curl, a throwaway
+# script) has a trivial way to redirect writes too, e.g. `OUTPUT_DIR=/tmp/smoketest MOCK_LLM=1
+# uvicorn app.server:app` -- this app has repeatedly clobbered real generated output at the
+# default path during manual debugging; the env var makes redirecting the obvious default action
+# instead of something that has to be remembered.
+_OUTPUT_DIR = os.environ.get("OUTPUT_DIR", "output")
+_COMPARE_TOP_N = 3
 
 
 class RankRequest(BaseModel):
@@ -64,6 +71,11 @@ class FeedbackRequest(BaseModel):
     observation_id: str | None = None
     relevant: bool = True
     comment: str | None = None
+
+
+class CompareRequest(BaseModel):
+    slug_a: str
+    slug_b: str
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -87,6 +99,35 @@ async def rank(request: RankRequest) -> dict:
         raise HTTPException(status_code=502, detail=str(e)) from e
 
     return json.loads((out_path / "results.json").read_text())
+
+
+@app.post("/compare")
+async def compare(request: CompareRequest) -> dict:
+    logger.info("Received /compare request: %s", request.model_dump())
+    try:
+        profile_a = resolve_profile(request.slug_a, None, None, None)
+        profile_b = resolve_profile(request.slug_b, None, None, None)
+    except SystemExit as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+
+    try:
+        await compare_profiles(
+            _df, profile_a, profile_b, _enrichment_cache, _COMPARE_TOP_N, _OUTPUT_DIR, request.slug_a, request.slug_b
+        )
+    except RationaleGenerationError as e:
+        raise HTTPException(status_code=502, detail=str(e)) from e
+
+    results_a = json.loads((Path(_OUTPUT_DIR) / request.slug_a / "results.json").read_text())
+    results_b = json.loads((Path(_OUTPUT_DIR) / request.slug_b / "results.json").read_text())
+    names_a = {a["acquirer"] for a in results_a["acquirers"]}
+    names_b = {a["acquirer"] for a in results_b["acquirers"]}
+    overlap = sorted(names_a & names_b)
+
+    return {
+        "profile_a": results_a,
+        "profile_b": results_b,
+        "overlap": {"count": len(overlap), "total": max(len(names_a), len(names_b)), "acquirers": overlap},
+    }
 
 
 @app.post("/feedback")
