@@ -92,8 +92,13 @@ async def run_profile(
         return acquirer, rationale, trace_id, observation_id
 
     logger.info("Synthesizing rationale for %d acquirers concurrently...", top_n)
-    tasks = [_one(i + 1, row) for i, row in ranked.reset_index(drop=True).iterrows()]
-    results = await asyncio.gather(*tasks)
+    with tracing.start_observation("span", f"run_profile:{slug}"):
+        # Tasks must be created (asyncio.gather -> ensure_future) while this span is the
+        # active context -- asyncio copies the current contextvars at task-creation time,
+        # which is how each acquirer's nested span below ends up parented under this one
+        # instead of becoming its own root trace.
+        tasks = [_one(i + 1, row) for i, row in ranked.reset_index(drop=True).iterrows()]
+        results = await asyncio.gather(*tasks)
     rationales = {acquirer: rationale for acquirer, rationale, _, _ in results}
     trace_ids = {acquirer: (trace_id, obs_id) for acquirer, _, trace_id, obs_id in results}
 
