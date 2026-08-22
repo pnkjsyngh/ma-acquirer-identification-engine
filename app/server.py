@@ -82,7 +82,7 @@ async def rank(request: RankRequest) -> dict:
     slug = request.slug or default_slug(target_profile)
 
     try:
-        out_path = await run_profile(_df, target_profile, _enrichment_cache, top_n=10, output_dir=_OUTPUT_DIR, slug=slug)
+        out_path = await run_profile(_df, target_profile, _enrichment_cache, top_n=2, output_dir=_OUTPUT_DIR, slug=slug)
     except RationaleGenerationError as e:
         raise HTTPException(status_code=502, detail=str(e)) from e
 

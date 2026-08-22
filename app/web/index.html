@@ -280,9 +280,10 @@
     var rows = items.map(function (p) {
       return "<tr><td>" + esc(p.year) + "</td><td>" + esc(p.target) + "</td><td>" + esc(p.sector) +
         "</td><td>$" + formatMoney(p.deal_size_mm) + "M</td><td>" + esc(p.deal_type) +
-        "</td><td>" + fmtOpt(p.ev_ebitda_multiple, "x") + "</td></tr>";
+        "</td><td>" + fmtOpt(p.ev_ebitda_multiple, "x") +
+        "</td><td>" + (p.csv_row != null ? esc(p.csv_row) : "NOT FOUND") + "</td></tr>";
     }).join("");
-    return '<table class="precedent-table"><thead><tr><th>Year</th><th>Target</th><th>Sector</th><th>Deal Size</th><th>Deal Type</th><th>EV/EBITDA</th></tr></thead><tbody>' +
+    return '<table class="precedent-table"><thead><tr><th>Year</th><th>Target</th><th>Sector</th><th>Deal Size</th><th>Deal Type</th><th>EV/EBITDA</th><th>CSV Row</th></tr></thead><tbody>' +
       rows + "</tbody></table>";
   }
 
