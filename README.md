@@ -115,7 +115,7 @@ flowchart LR
     AGENT -.-> TRACE
     UI -.-> FEEDBACK -.-> TRACE
 
-    USER --> UI --> DET --> AGENT --> RESULTS --> UI --> USER
+    USER --> UI --> DET --> AGENT --> RESULTS --> USER
 
     classDef actorNode fill:#e3f2fd,stroke:#1565c0,color:#0d1b2a
     classDef uiNode fill:#ede7f6,stroke:#4527a0,color:#0d1b2a
