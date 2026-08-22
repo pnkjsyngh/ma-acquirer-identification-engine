@@ -101,7 +101,7 @@ runs identically with these unset.
 Bird's-eye view first, the request/response loop plus the two side-branches, then the pipeline detail below.
 
 ```mermaid
-%%{init: {'themeVariables': {'fontSize': '14px'}}}%%
+%%{init: {'themeVariables': {'fontSize': '18px'}}}%%
 flowchart LR
     TRACE[("Tracing")]
     FEEDBACK["Feedback\n(relevant / not relevant\n+ optional comment)"]
@@ -201,48 +201,29 @@ tool use and no LLM-driven routing, just a schema-constrained wrapper around one
   exactly like a schema violation: one retry, then a hard failure for that acquirer, rather than silently
   reaching the report. See Grounding & validation below.
 
-What Stage 1 actually does for one acquirer (`app/llm.py::_stage1_tool_loop`, up to 6 iterations):
+What Stage 1 actually does for one acquirer (`app/llm.py::_stage1_tool_loop`):
 
 ```mermaid
-sequenceDiagram
-    participant Orchestrator as app/llm.py
-    participant Claude as Stage 1 model<br/>(higher reasoning)
-    participant Tools as app/tools.py<br/>(reads the dossier)
+%%{init: {'themeVariables': {'fontSize': '18px'}}}%%
+flowchart TB
+    START(["Acquirer evidence +\ntarget profile"]) --> REASON["Reason + select a tool"]
+    REASON <--> T1["Deal history\n(tool)"]
+    REASON <--> T2["Valuation comps\n(tool)"]
+    REASON <--> T3["Strategic tag overlap\n(tool)"]
+    REASON --> THIN{Evidence thin?}
+    THIN -->|yes| WIDEN["Widen to\nadjacent sector\n(same tool-call\nmechanism)"]
+    WIDEN -->|"reason again\n(capped iterations)"| REASON
+    THIN -->|no| DONE["Finalize evidence +\nreasoning trace"]
+    DONE --> HANDOFF(["Hand off to Stage 2"])
 
-    Orchestrator->>Claude: prompt + dossier summary + tool schemas
-    activate Claude
-
-    rect rgb(240, 248, 255)
-    note over Orchestrator,Tools: fixed evidence gathering
-    Claude-->>Orchestrator: tool_use: get_precedent_deals()
-    Orchestrator->>Tools: execute_tool()
-    Tools-->>Orchestrator: acquirer's real deal history
-    Orchestrator->>Claude: tool_result
-
-    Claude-->>Orchestrator: tool_use: get_valuation_comps()
-    Orchestrator->>Tools: execute_tool()
-    Tools-->>Orchestrator: comparable closed deals
-    Orchestrator->>Claude: tool_result
-    end
-
-    rect rgb(255, 245, 230)
-    note over Orchestrator,Tools: dynamic routing, the one real decision point
-    alt evidence is thin and the model judges it insufficient
-        Claude-->>Orchestrator: tool_use: widen_to_adjacent_sector()
-        Orchestrator->>Tools: execute_tool()
-        Tools-->>Orchestrator: adjacent-sector candidate deals
-        Orchestrator->>Claude: tool_result
-    else evidence is sufficient
-        note right of Claude: widen_to_adjacent_sector is never called
-    end
-    end
-
-    Claude-->>Orchestrator: stop_reason=end_turn: JSON reasoning + used_widen
-    deactivate Claude
-    Orchestrator->>Orchestrator: finalize dossier (Stage1Decision)
-    note over Orchestrator: hands finalized dossier + reasoning trace<br/>to Stage 2 (bulk prose, no tools, no routing)
+    classDef llmNode fill:#fff3e0,stroke:#ef6c00,color:#0d1b2a
+    classDef gateNode fill:#fce4ec,stroke:#ad1457,color:#0d1b2a
+    classDef toolNode fill:#e3f2fd,stroke:#1565c0,color:#0d1b2a
+    class REASON llmNode
+    class THIN gateNode
+    class T1,T2,T3,WIDEN toolNode
 ```
-<p align="center"><small><em>Figure 3 — Stage 1's tool loop: fixed evidence gathering (blue) versus the one dynamic-routing decision (amber).</em></small></p>
+<p align="center"><small><em>Figure 3 — Stage 1's loop for one acquirer (of 10, run concurrently): the model selects among three evidence tools, then conditionally widens the search using the same tool-call mechanism.</em></small></p>
 
 ## Assumptions
 

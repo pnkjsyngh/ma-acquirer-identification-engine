@@ -71,6 +71,17 @@ README's Grounding & validation section). What's still missing: numbers embedded
 extract numeric claims from arbitrary sentences and re-derive the equivalent figure from the CSV. Narrower and
 higher-value than a general-purpose framework, same reasoning as the guardrails discussion below.
 
+**Surface the widen-to-adjacent-sector decision structurally, not just in prose.** When Stage 1 widens evidence
+for a thin acquirer, that fact only reaches the final report informally: `build_stage2_prompt` nudges the model
+to mention it in prose (`app/prompts.py`), but nothing guarantees the words show up, and there's no `widened`
+field in `results.json`, no badge in the web UI, and nothing in the Langfuse trace metadata. An acquirer that
+triggers widening already has a dampened score (`confidence = min(1.0, relevant_deals / 3)` in `app/ranking.py`
+is the same `relevant_deals` count that sets `thin_evidence`, so the two are directly linked), so this isn't
+covering up a hidden problem, it's a transparency nicety: making "which acquirers on this list are here on
+thinner evidence than others" a one-glance answer instead of something a reader has to infer from prose or
+rank position. Cheap to add (same `trace_id`/`csv_row` threading pattern already used elsewhere), just not
+built.
+
 **Guardrails.** Considered and deliberately scoped narrow: the real risk profile here doesn't include
 untrusted free-text user input (target fields are structured, not open text), so general prompt-injection/
 jailbreak defenses (NeMo Guardrails, LLM-Guard) mostly aren't solving a threat that exists in this app. The
