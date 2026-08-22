@@ -14,6 +14,7 @@ Event loop is closed" from the second profile onward) -- route handlers must sta
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
@@ -23,7 +24,11 @@ from pydantic import BaseModel
 from app.data import DEFAULT_CSV_PATH, load_transactions
 from app.enrich import load_enrichment_cache
 from app.llm import RationaleGenerationError
+from app.logging_config import configure_logging
 from app.main import default_slug, resolve_profile, run_profile
+
+configure_logging()
+logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
@@ -49,6 +54,7 @@ async def index() -> str:
 
 @app.post("/rank")
 async def rank(request: RankRequest) -> dict:
+    logger.info("Received /rank request: %s", request.model_dump(exclude_none=True))
     try:
         target_profile = resolve_profile(request.slug, request.sector, request.deal_size_mm, request.geography)
     except SystemExit as e:

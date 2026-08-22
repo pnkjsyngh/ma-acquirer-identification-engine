@@ -14,6 +14,7 @@ def test_rank_known_profile_returns_full_rationale():
     response = client.post("/rank", json={"slug": "healthcare_services_200mm"})
     assert response.status_code == 200
     body = response.json()
+    assert isinstance(body["elapsed_seconds"], (int, float))
     assert len(body["acquirers"]) == 10
     for acquirer in body["acquirers"]:
         for section in REQUIRED_SECTIONS:

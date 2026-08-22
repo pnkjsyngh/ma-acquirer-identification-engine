@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import logging
 import sys
 import time
 from pathlib import Path
@@ -23,6 +24,8 @@ from app.llm import synthesize_rationale
 from app.output import validate_rationale, write_outputs
 from app.prompts import conviction_level_for_rank
 from app.ranking import build_dossier, rank_acquirers
+
+logger = logging.getLogger(__name__)
 
 PROFILES_PATH = Path(__file__).resolve().parent.parent / "data" / "synthetic_profiles.json"
 
@@ -61,7 +64,16 @@ async def run_profile(
     slug: str,
 ) -> Path:
     started = time.time()
+    logger.info(
+        "Starting ranking for %s (~$%.0fM, slug=%s)",
+        target_profile["sector"],
+        target_profile["deal_size_mm"],
+        slug,
+    )
+
+    ranking_started = time.time()
     ranked, deal_fit_df = rank_acquirers(df, target_profile, top_n=top_n)
+    logger.info("Ranked top %d acquirers in %.2fs", top_n, time.time() - ranking_started)
 
     async def _one(rank: int, row) -> tuple[str, dict]:
         acquirer = row["acquirer"]
@@ -76,17 +88,25 @@ async def run_profile(
             print(f"  [warn] {acquirer}: {'; '.join(errors)}", file=sys.stderr)
         return acquirer, rationale
 
+    logger.info("Synthesizing rationale for %d acquirers concurrently...", top_n)
     tasks = [_one(i + 1, row) for i, row in ranked.reset_index(drop=True).iterrows()]
     results = await asyncio.gather(*tasks)
     rationales = dict(results)
 
-    out_path = write_outputs(slug, target_profile, ranked, rationales, output_dir=output_dir)
     elapsed = time.time() - started
+    out_path = write_outputs(
+        slug, target_profile, ranked, rationales, output_dir=output_dir, elapsed_seconds=elapsed
+    )
+    logger.info("Total time for %s: %.2fs", slug, elapsed)
     print(f"{target_profile['sector']} (~${target_profile['deal_size_mm']:.0f}M) -> {out_path} ({elapsed:.1f}s)")
     return out_path
 
 
 def main() -> None:
+    from app.logging_config import configure_logging
+
+    configure_logging()
+
     parser = argparse.ArgumentParser(prog="python -m app")
     sub = parser.add_subparsers(dest="command", required=True)
 

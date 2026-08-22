@@ -298,8 +298,12 @@
     var heading = target.sector
       ? "<h2>Ranked acquirers for " + esc(target.sector) + " (~$" + formatMoney(target.deal_size_mm) + "M)</h2>"
       : "<h2>Results</h2>";
+    var timing =
+      typeof data.elapsed_seconds === "number"
+        ? '<p class="subtitle">Completed in ' + data.elapsed_seconds.toFixed(1) + "s</p>"
+        : "";
     document.getElementById("results").innerHTML =
-      heading + renderTable(acquirers) + acquirers.map(renderCard).join("");
+      heading + timing + renderTable(acquirers) + acquirers.map(renderCard).join("");
   }
 
   async function onSubmit(event) {
