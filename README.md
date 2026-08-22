@@ -7,10 +7,10 @@ Given a target company profile (sector, deal size, geography), ranks the 10 most
 
 ```bash
 # No API key needed -- deterministic canned rationales, fully offline
-MOCK_LLM=1 ./run.sh rank --profile healthcare_services_default
+MOCK_LLM=1 ./run.sh rank --profile healthcare_services_200mm
 
 # Real synthesis (requires ANTHROPIC_API_KEY + OPENCODE_API_KEY, see below)
-./run.sh rank --profile healthcare_services_default
+./run.sh rank --profile healthcare_services_200mm
 
 # Run all 10 synthetic test profiles (see data/synthetic_profiles.json)
 ./run.sh rank --all-profiles

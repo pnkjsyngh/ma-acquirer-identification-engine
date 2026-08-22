@@ -11,7 +11,7 @@ client = TestClient(app)
 
 
 def test_rank_known_profile_returns_full_rationale():
-    response = client.post("/rank", json={"slug": "healthcare_services_default"})
+    response = client.post("/rank", json={"slug": "healthcare_services_200mm"})
     assert response.status_code == 200
     body = response.json()
     assert len(body["acquirers"]) == 10

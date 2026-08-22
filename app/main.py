@@ -1,6 +1,6 @@
 """CLI entrypoint.
 
-  python -m app rank --profile healthcare_services_default
+  python -m app rank --profile healthcare_services_200mm
   python -m app rank --sector "Healthcare Services" --deal-size-mm 200
   python -m app rank --all-profiles
   python -m app enrich
