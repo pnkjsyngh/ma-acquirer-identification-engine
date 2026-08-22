@@ -142,13 +142,14 @@ def write_outputs(
     ranked: pd.DataFrame,
     rationales: dict[str, dict],
     output_dir: str | Path = "output",
+    elapsed_seconds: float | None = None,
 ) -> Path:
     out_path = Path(output_dir) / profile_slug
     out_path.mkdir(parents=True, exist_ok=True)
 
     (out_path / "summary.md").write_text(render_summary_markdown(target_profile, ranked, rationales))
 
-    payload = {"target_profile": target_profile, "acquirers": []}
+    payload = {"target_profile": target_profile, "elapsed_seconds": elapsed_seconds, "acquirers": []}
     for i, row in ranked.reset_index(drop=True).iterrows():
         rank = i + 1
         rationale = rationales[row["acquirer"]]

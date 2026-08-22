@@ -16,8 +16,10 @@ exercises, including the conditional widen path.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
+import time
 
 from pydantic import ValidationError
 
@@ -38,6 +40,8 @@ STAGE2_MODEL = os.environ.get("STAGE2_MODEL", "gpt-5.6-luna")
 OPENCODE_BASE_URL = os.environ.get("OPENCODE_BASE_URL", "https://opencode.ai/zen/go/v1")
 STAGE2_MAX_TOKENS = int(os.environ.get("STAGE2_MAX_TOKENS", "3500"))
 MAX_TOOL_ITERATIONS = 6
+
+logger = logging.getLogger(__name__)
 
 _anthropic_client = None
 _opencode_client = None
@@ -167,10 +171,20 @@ async def _stage1_tool_loop(client, dossier: dict, target_profile: dict) -> tupl
 
 async def stage1_gather_evidence(target_profile: dict, dossier: dict) -> tuple[dict, str]:
     """Returns (finalized_dossier, stage1_reasoning)."""
-    if os.environ.get("MOCK_LLM") == "1":
-        return _mock_stage1(dossier)
+    acquirer = dossier["acquirer"]
+    started = time.monotonic()
+    logger.info("Stage 1 (evidence gathering) started for %s", acquirer)
 
-    return await _stage1_tool_loop(_get_anthropic_client(), dossier, target_profile)
+    if os.environ.get("MOCK_LLM") == "1":
+        finalized_dossier, reasoning = _mock_stage1(dossier)
+    else:
+        finalized_dossier, reasoning = await _stage1_tool_loop(_get_anthropic_client(), dossier, target_profile)
+
+    elapsed = time.monotonic() - started
+    logger.info(
+        "Stage 1 for %s completed in %.2fs (widened=%s)", acquirer, elapsed, finalized_dossier["widened"]
+    )
+    return finalized_dossier, reasoning
 
 
 _FALLBACK_RISKS = [
@@ -339,9 +353,26 @@ async def stage2_write_rationale(
     external_facts: list[dict],
     stage1_reasoning: str,
 ) -> dict:
-    if os.environ.get("MOCK_LLM") == "1":
-        return _mock_stage2(target_profile, finalized_dossier, conviction_level, external_facts, stage1_reasoning)
+    acquirer = finalized_dossier["acquirer"]
+    started = time.monotonic()
+    logger.info("Stage 2 (synthesis) started for %s", acquirer)
+    try:
+        if os.environ.get("MOCK_LLM") == "1":
+            return _mock_stage2(target_profile, finalized_dossier, conviction_level, external_facts, stage1_reasoning)
+        return await _stage2_write_rationale_live(
+            target_profile, finalized_dossier, conviction_level, external_facts, stage1_reasoning
+        )
+    finally:
+        logger.info("Stage 2 for %s completed in %.2fs", acquirer, time.monotonic() - started)
 
+
+async def _stage2_write_rationale_live(
+    target_profile: dict,
+    finalized_dossier: dict,
+    conviction_level: str,
+    external_facts: list[dict],
+    stage1_reasoning: str,
+) -> dict:
     prompt = build_stage2_prompt(target_profile, finalized_dossier, conviction_level, external_facts, stage1_reasoning)
 
     async def _call(extra: str = "") -> str:

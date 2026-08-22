@@ -1,69 +1,69 @@
 [
   {
-    "slug": "healthcare_services_default",
+    "slug": "healthcare_services_200mm",
     "sector": "Healthcare Services",
     "deal_size_mm": 200,
     "geography": null,
     "description": "Mid-market, private, regional, strong EBITDA margins (default assessment target)"
   },
   {
-    "slug": "health_it_national",
+    "slug": "health_it_150mm_national",
     "sector": "Health IT",
     "deal_size_mm": 150,
     "geography": "National",
     "description": "Health IT platform, national footprint, $150M EV"
   },
   {
-    "slug": "medical_devices_midwest",
+    "slug": "medical_devices_300mm_midwest",
     "sector": "Medical Devices",
     "deal_size_mm": 300,
     "geography": "Midwest",
     "description": "Medical devices manufacturer, Midwest, $300M EV"
   },
   {
-    "slug": "dental_southeast",
+    "slug": "dental_80mm_southeast",
     "sector": "Dental",
     "deal_size_mm": 80,
     "geography": "Southeast",
     "description": "Dental services group (DSO), Southeast, $80M EV"
   },
   {
-    "slug": "behavioral_health_mountain_west",
+    "slug": "behavioral_health_250mm_mountain_west",
     "sector": "Behavioral Health",
     "deal_size_mm": 250,
     "geography": "Mountain West",
     "description": "Behavioral health platform, Mountain West, $250M EV"
   },
   {
-    "slug": "home_health_southeast",
+    "slug": "home_health-hospice_120mm_southeast",
     "sector": "Home Health/Hospice",
     "deal_size_mm": 120,
     "geography": "Southeast",
     "description": "Home health/hospice provider, Southeast, $120M EV"
   },
   {
-    "slug": "physician_groups_northeast",
+    "slug": "physician_groups_180mm_northeast",
     "sector": "Physician Groups",
     "deal_size_mm": 180,
     "geography": "Northeast",
     "description": "Physician group / MSO, Northeast, $180M EV"
   },
   {
-    "slug": "revenue_cycle_national",
+    "slug": "revenue_cycle_90mm_national",
     "sector": "Revenue Cycle",
     "deal_size_mm": 90,
     "geography": "National",
     "description": "Revenue cycle management vendor, national, $90M EV"
   },
   {
-    "slug": "health_insurance_multi_regional",
+    "slug": "health_insurance_350mm_multi-regional",
     "sector": "Health Insurance",
     "deal_size_mm": 350,
     "geography": "Multi-Regional",
     "description": "Regional health insurer, multi-regional, $350M EV"
   },
   {
-    "slug": "pharma_biotech_west_coast",
+    "slug": "pharma-biotech_220mm_west_coast",
     "sector": "Pharma/Biotech",
     "deal_size_mm": 220,
     "geography": "West Coast",

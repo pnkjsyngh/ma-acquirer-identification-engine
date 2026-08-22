@@ -7,10 +7,10 @@ Given a target company profile (sector, deal size, geography), ranks the 10 most
 
 ```bash
 # No API key needed -- deterministic canned rationales, fully offline
-MOCK_LLM=1 ./run.sh rank --profile healthcare_services_default
+MOCK_LLM=1 ./run.sh rank --profile healthcare_services_200mm
 
 # Real synthesis (requires ANTHROPIC_API_KEY + OPENCODE_API_KEY, see below)
-./run.sh rank --profile healthcare_services_default
+./run.sh rank --profile healthcare_services_200mm
 
 # Run all 10 synthetic test profiles (see data/synthetic_profiles.json)
 ./run.sh rank --all-profiles
@@ -26,6 +26,18 @@ Output lands in `output/<profile_slug>/`: `summary.md` (ranked table), `01_<acqu
 
 `./run.sh enrich` re-runs the one-time Wikipedia pre-fetch for all acquirers -- not required to run the ranker;
 the cache is already committed at `data/enrichment_cache.json`.
+
+### Web UI (optional)
+
+```bash
+MOCK_LLM=1 ./run.sh serve --port 8000   # or drop MOCK_LLM=1 for real synthesis
+```
+
+Open `http://localhost:8000/` -- a single-page form (pick a synthetic profile or enter a custom one), a ranked
+table, and an expandable rationale per acquirer. Thin wrapper around the same CLI pipeline (`POST /rank` calls
+the same `run_profile` the CLI uses and returns `results.json`'s contents) -- no separate logic, no persistence
+beyond the existing `output/` directory. Two identical requests racing for the same profile slug is a benign
+last-writer-wins race on that directory, same as running the CLI twice concurrently -- not specially handled.
 
 ### Environment variables
 

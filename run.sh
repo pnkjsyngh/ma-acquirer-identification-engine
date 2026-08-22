@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 # Single-command runner: creates/reuses a venv, installs deps, runs the CLI.
 # Usage:
-#   ./run.sh rank --profile healthcare_services_default
+#   ./run.sh rank --profile healthcare_services_200mm
 #   ./run.sh rank --all-profiles
-#   MOCK_LLM=1 ./run.sh rank --profile healthcare_services_default   # no API key needed
+#   MOCK_LLM=1 ./run.sh rank --profile healthcare_services_200mm   # no API key needed
 #   ./run.sh enrich
+#   ./run.sh serve --port 8000
 
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"

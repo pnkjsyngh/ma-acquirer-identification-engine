@@ -1,6 +1,6 @@
 """CLI entrypoint.
 
-  python -m app rank --profile healthcare_services_default
+  python -m app rank --profile healthcare_services_200mm
   python -m app rank --sector "Healthcare Services" --deal-size-mm 200
   python -m app rank --all-profiles
   python -m app enrich
@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import logging
 import sys
 import time
 from pathlib import Path
@@ -23,6 +24,8 @@ from app.llm import synthesize_rationale
 from app.output import validate_rationale, write_outputs
 from app.prompts import conviction_level_for_rank
 from app.ranking import build_dossier, rank_acquirers
+
+logger = logging.getLogger(__name__)
 
 PROFILES_PATH = Path(__file__).resolve().parent.parent / "data" / "synthetic_profiles.json"
 
@@ -43,7 +46,13 @@ def resolve_profile(slug: str | None, sector: str | None, deal_size_mm: float | 
 
 
 def default_slug(target_profile: dict) -> str:
-    return target_profile["sector"].lower().replace("/", "-").replace(" ", "_")
+    def clean(s: str) -> str:
+        return s.lower().replace("/", "-").replace(" ", "_")
+
+    parts = [clean(target_profile["sector"]), f"{target_profile['deal_size_mm']:g}mm"]
+    if target_profile.get("geography"):
+        parts.append(clean(target_profile["geography"]))
+    return "_".join(parts)
 
 
 async def run_profile(
@@ -55,7 +64,16 @@ async def run_profile(
     slug: str,
 ) -> Path:
     started = time.time()
+    logger.info(
+        "Starting ranking for %s (~$%.0fM, slug=%s)",
+        target_profile["sector"],
+        target_profile["deal_size_mm"],
+        slug,
+    )
+
+    ranking_started = time.time()
     ranked, deal_fit_df = rank_acquirers(df, target_profile, top_n=top_n)
+    logger.info("Ranked top %d acquirers in %.2fs", top_n, time.time() - ranking_started)
 
     async def _one(rank: int, row) -> tuple[str, dict]:
         acquirer = row["acquirer"]
@@ -70,17 +88,25 @@ async def run_profile(
             print(f"  [warn] {acquirer}: {'; '.join(errors)}", file=sys.stderr)
         return acquirer, rationale
 
+    logger.info("Synthesizing rationale for %d acquirers concurrently...", top_n)
     tasks = [_one(i + 1, row) for i, row in ranked.reset_index(drop=True).iterrows()]
     results = await asyncio.gather(*tasks)
     rationales = dict(results)
 
-    out_path = write_outputs(slug, target_profile, ranked, rationales, output_dir=output_dir)
     elapsed = time.time() - started
+    out_path = write_outputs(
+        slug, target_profile, ranked, rationales, output_dir=output_dir, elapsed_seconds=elapsed
+    )
+    logger.info("Total time for %s: %.2fs", slug, elapsed)
     print(f"{target_profile['sector']} (~${target_profile['deal_size_mm']:.0f}M) -> {out_path} ({elapsed:.1f}s)")
     return out_path
 
 
 def main() -> None:
+    from app.logging_config import configure_logging
+
+    configure_logging()
+
     parser = argparse.ArgumentParser(prog="python -m app")
     sub = parser.add_subparsers(dest="command", required=True)
 
@@ -95,12 +121,24 @@ def main() -> None:
 
     sub.add_parser("enrich", help="Pre-fetch Wikipedia summaries for all acquirers (one-time, offline after)")
 
+    serve_p = sub.add_parser("serve", help="Run the minimal web UI")
+    serve_p.add_argument("--host", default="127.0.0.1")
+    serve_p.add_argument("--port", type=int, default=8000)
+
     args = parser.parse_args()
 
     if args.command == "enrich":
         from app.enrich import main as enrich_main
 
         enrich_main()
+        return
+
+    if args.command == "serve":
+        import uvicorn
+
+        from app.server import app as web_app
+
+        uvicorn.run(web_app, host=args.host, port=args.port)
         return
 
     df = load_transactions(DEFAULT_CSV_PATH)
