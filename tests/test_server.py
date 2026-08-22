@@ -4,13 +4,17 @@ os.environ["MOCK_LLM"] = "1"
 
 from fastapi.testclient import TestClient  # noqa: E402
 
+from app import server as server_module  # noqa: E402  -- aliased: `from app.server import app` below shadows the name `app`
 from app.output import REQUIRED_SECTIONS  # noqa: E402
 from app.server import app  # noqa: E402
 
 client = TestClient(app)
 
 
-def test_rank_known_profile_returns_full_rationale():
+def test_rank_known_profile_returns_full_rationale(tmp_path, monkeypatch):
+    # Redirect writes to tmp_path -- without this, mock rationale output overwrites the real
+    # (possibly paid) LLM output on disk under output/healthcare_services_200mm/.
+    monkeypatch.setattr(server_module, "_OUTPUT_DIR", str(tmp_path))
     response = client.post("/rank", json={"slug": "healthcare_services_200mm"})
     assert response.status_code == 200
     body = response.json()

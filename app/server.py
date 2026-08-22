@@ -48,6 +48,9 @@ _enrichment_cache = load_enrichment_cache()
 
 _INDEX_HTML_PATH = Path(__file__).resolve().parent / "web" / "index.html"
 
+# Module-level so tests can redirect writes (e.g. to tmp_path) without touching real run output.
+_OUTPUT_DIR = "output"
+
 
 class RankRequest(BaseModel):
     slug: str | None = None
@@ -79,7 +82,7 @@ async def rank(request: RankRequest) -> dict:
     slug = request.slug or default_slug(target_profile)
 
     try:
-        out_path = await run_profile(_df, target_profile, _enrichment_cache, top_n=10, output_dir="output", slug=slug)
+        out_path = await run_profile(_df, target_profile, _enrichment_cache, top_n=10, output_dir=_OUTPUT_DIR, slug=slug)
     except RationaleGenerationError as e:
         raise HTTPException(status_code=502, detail=str(e)) from e
 
