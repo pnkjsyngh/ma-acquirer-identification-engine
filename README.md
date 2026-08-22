@@ -101,7 +101,7 @@ runs identically with these unset.
 Bird's-eye view first, the request/response loop plus the two side-branches, then the pipeline detail below.
 
 ```mermaid
-%%{init: {'themeVariables': {'fontSize': '18px'}}}%%
+%%{init: {'themeVariables': {'fontSize': '14px'}}}%%
 flowchart LR
     TRACE[("Tracing")]
     FEEDBACK["Feedback\n(relevant / not relevant\n+ optional comment)"]
