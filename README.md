@@ -185,33 +185,6 @@ trace span via `POST /feedback` (`trace_id`/`observation_id` round-tripped throu
 **trace-attached feedback only** -- an annotation visible in the Langfuse dashboard -- not a closed-loop system
 that changes future rankings (that's `docs/extensions.md`'s scope, deliberately not built here).
 
-## Known limitations
-
-- **Grounding covers structured citations, not free-text prose.** `precedent_activity` and `valuation_context`
-  are checked automatically on every run (see Grounding & validation above). Numbers embedded in prose fields
-  (`acquirer_overview`, `risk_flags[].evidence`) aren't automatically verified -- a manual spot-check (Atrium
-  Health) confirmed those traced correctly too, with one 0.1x rounding slip on an aggregate range (9.3x cited
-  vs. 9.2x actual), but that check isn't automated. A fuller citation validator extending into free text is a
-  Stretch item.
-- **Sector adjacency is a proxy** (buyer co-occurrence), not a direct measure of strategic adjacency. The IDF
-  downweight sharpens it but doesn't eliminate the approximation.
-- **Wikipedia enrichment covers 70/107 acquirers**, skewed toward large PE sponsors and public strategics.
-  Missing acquirers fall back to CSV-only content, no crash. A business-entity filter plus one hard-coded
-  exclusion catch known name-collisions but don't eliminate the risk entirely.
-- **`STAGE2_BACKEND=anthropic` (opencode-go fallback) is implemented but not live-tested** -- same call shape
-  Stage 1 already uses, but hasn't itself been run against a real opencode-go outage.
-- **No closed-loop feedback** -- the "Relevant"/"Not relevant" flags are trace-attached annotations (see
-  Observability & feedback above), not a system that changes future rankings. That fuller version, plus search-
-  augmented enrichment beyond Wikipedia, are documented as future directions in `docs/extensions.md`, not built.
-- **`WEIGHTS` (`app/features.py`) are hardcoded, not externalized to a config file, and are documented
-  assumptions rather than fitted values** -- the sensitivity sweep above shows how robust the ranking is to
-  each weight, not that 0.30/0.25/0.20/... is objectively optimal, and changing them today requires a code
-  edit, not a config change.
-- **No cost-per-run figure surfaced in the app or the UI.** Token usage and cost are visible per call in the
-  Langfuse dashboard when tracing is enabled; the app itself doesn't retain or display an aggregate number.
-- **No MCP exposure** -- this app owns both the tools and the only client, so MCP would add protocol overhead
-  with no functional benefit here; scoped out deliberately, not a gap.
-
 ## Non-determinism handling
 
 - `temperature=0` on every LLM call, passed via `extra_body` since the current Anthropic SDK deprecated it as
@@ -243,6 +216,37 @@ see `.github/workflows/tests.yml`), covering:
   `test_grounding.py`).
 - The web UI's `/rank`, `/compare`, and `/feedback` routes, and that tracing being disabled never breaks
   anything (`test_server.py`, `test_tracing.py`).
+
+## Limitations & extensions
+
+What's genuinely missing today, and what it would take to close each gap -- `docs/extensions.md` goes deeper
+on these and others (data/target modeling, cost/performance, quality/trust, product/platform themes) with more
+on how each would attach to the existing architecture.
+
+- **Grounding covers structured citations, not free-text prose.** `precedent_activity` and `valuation_context`
+  are checked automatically on every run (see Grounding & validation above). Numbers embedded in prose fields
+  (`acquirer_overview`, `risk_flags[].evidence`) aren't automatically verified -- a manual spot-check (Atrium
+  Health) confirmed those traced correctly too, with one 0.1x rounding slip on an aggregate range (9.3x cited
+  vs. 9.2x actual), but that check isn't automated. A fuller citation validator extending into free text is a
+  Stretch item.
+- **Sector adjacency is a proxy** (buyer co-occurrence), not a direct measure of strategic adjacency. The IDF
+  downweight sharpens it but doesn't eliminate the approximation.
+- **Wikipedia enrichment covers 70/107 acquirers**, skewed toward large PE sponsors and public strategics.
+  Missing acquirers fall back to CSV-only content, no crash. A business-entity filter plus one hard-coded
+  exclusion catch known name-collisions but don't eliminate the risk entirely.
+- **`STAGE2_BACKEND=anthropic` (opencode-go fallback) is implemented but not live-tested** -- same call shape
+  Stage 1 already uses, but hasn't itself been run against a real opencode-go outage.
+- **No closed-loop feedback** -- the "Relevant"/"Not relevant" flags are trace-attached annotations (see
+  Observability & feedback above), not a system that changes future rankings. That fuller version, plus search-
+  augmented enrichment beyond Wikipedia, are documented as future directions in `docs/extensions.md`, not built.
+- **`WEIGHTS` (`app/features.py`) are hardcoded, not externalized to a config file, and are documented
+  assumptions rather than fitted values** -- the sensitivity sweep above shows how robust the ranking is to
+  each weight, not that 0.30/0.25/0.20/... is objectively optimal, and changing them today requires a code
+  edit, not a config change.
+- **No cost-per-run figure surfaced in the app or the UI.** Token usage and cost are visible per call in the
+  Langfuse dashboard when tracing is enabled; the app itself doesn't retain or display an aggregate number.
+- **No MCP exposure** -- this app owns both the tools and the only client, so MCP would add protocol overhead
+  with no functional benefit here; scoped out deliberately, not a gap.
 
 Server-route tests redirect all filesystem writes to `tmp_path` -- the app itself never runs `pytest` against
 its own default `output/` directory, so the test suite can't clobber real generated output.
