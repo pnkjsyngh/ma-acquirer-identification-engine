@@ -33,10 +33,14 @@ def start_observation(as_type: Literal["span", "generation"], name: str):
         yield obs
 
 
-def record_usage(obs, input_tokens: int, output_tokens: int) -> None:
+def record_usage(obs, model: str, input_tokens: int, output_tokens: int) -> None:
+    # `model` is required for Langfuse to compute cost from usage_details -- it looks up
+    # $/token by matching this string against its pricing table (built-in or custom
+    # model definitions registered in the Langfuse project). Without it, cost silently
+    # stays blank even though token counts still show up.
     if not is_enabled():
         return
-    obs.update(usage_details={"input_tokens": input_tokens, "output_tokens": output_tokens})
+    obs.update(model=model, usage_details={"input_tokens": input_tokens, "output_tokens": output_tokens})
 
 
 def current_ids() -> tuple[str | None, str | None]:

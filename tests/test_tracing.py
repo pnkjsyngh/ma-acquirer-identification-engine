@@ -12,6 +12,12 @@ def test_start_observation_is_safe_noop_when_disabled(monkeypatch):
         obs.update(usage_details={"input_tokens": 1, "output_tokens": 1})  # must not raise
 
 
+def test_record_usage_is_safe_noop_when_disabled(monkeypatch):
+    monkeypatch.delenv("LANGFUSE_PUBLIC_KEY", raising=False)
+    with tracing.start_observation("generation", "test") as obs:
+        tracing.record_usage(obs, "some-model", 10, 20)  # must not raise
+
+
 def test_current_ids_none_when_disabled(monkeypatch):
     monkeypatch.delenv("LANGFUSE_PUBLIC_KEY", raising=False)
     assert tracing.current_ids() == (None, None)

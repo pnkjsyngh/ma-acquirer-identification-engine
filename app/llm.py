@@ -186,7 +186,7 @@ async def stage1_gather_evidence(target_profile: dict, dossier: dict) -> tuple[d
             finalized_dossier, reasoning = await _stage1_tool_loop(
                 _get_anthropic_client(), dossier, target_profile, usage
             )
-        tracing.record_usage(obs, usage["input_tokens"], usage["output_tokens"])
+        tracing.record_usage(obs, MODEL, usage["input_tokens"], usage["output_tokens"])
 
     elapsed = time.monotonic() - started
     logger.info(
@@ -381,7 +381,8 @@ async def stage2_write_rationale(
                 result = await _stage2_write_rationale_live(
                     target_profile, finalized_dossier, conviction_level, external_facts, stage1_reasoning, usage
                 )
-            tracing.record_usage(obs, usage["input_tokens"], usage["output_tokens"])
+            stage2_model = MODEL if STAGE2_BACKEND == "anthropic" else STAGE2_MODEL
+            tracing.record_usage(obs, stage2_model, usage["input_tokens"], usage["output_tokens"])
             return result
     finally:
         logger.info("Stage 2 for %s completed in %.2fs", acquirer, time.monotonic() - started)
