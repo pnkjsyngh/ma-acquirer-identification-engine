@@ -126,7 +126,10 @@ rationale changes over time, and proper multi-user access rather than a shared l
 **Productionizing & deployment.** This is architecturally solid (modular, tested, observable) but still a
 single-process prototype, not something built for concurrent multi-user traffic:
 - **Deployment & scaling** — containerized and orchestrated (K8s/ECS), with the existing CI (test-only today,
-  see the README's Testing section) extended into an actual CD pipeline.
+  see the README's Testing section) extended into an actual CD pipeline. Deliberately not built now: `run.sh`
+  already satisfies what this prototype actually needs (single command, no manual setup, reproducible
+  environment), so a container would be adding a dependency rather than removing one at this scale — it starts
+  to earn its keep once there's a real multi-user deploy target to orchestrate, which is the rest of this list.
 - **Secrets management** — `.env` files are fine for a prototype, not for a real deploy; a real secrets manager
   (Vault or a cloud-native equivalent) instead.
 - **Backpressure & rate limiting.** `asyncio.gather` concurrency is validated for one request's 10 acquirers
