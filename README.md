@@ -212,7 +212,7 @@ flowchart TB
     OUTCOME --> DEALFIT
 
     DEALFIT["Deal fit score =\nweighted sum\nof 6 signals"]
-    DEALFIT --> ROLLUP["Average this acquirer's\ndeal fit scores\n(weighted by recency x outcome)"]
+    DEALFIT --> ROLLUP["Average this acquirer's\ndeal fit scores"]
     ROLLUP --> COUNT{"Relevant deals\n>= 3?"}
     COUNT -->|yes| FULL["Full confidence"]
     COUNT -->|no| DAMPENED["Dampened confidence\n(relevant deals / 3)"]
@@ -234,8 +234,7 @@ flowchart TB
     style INDEPENDENT stroke-dasharray: 5 5
 ```
 <p align="center"><small><em>Figure 3 — Deterministic ranking: six signals combine into one deal fit score per
-deal (signal weights), deals are then grouped by acquirer and averaged (deal weights: recency x outcome), and
-the confidence dampener scales the result before sorting. Two separate weighting steps, not one.</em></small></p>
+deal, deals are then averaged per acquirer, and the confidence dampener scales the result before sorting.</em></small></p>
 
 **LLM synthesis is a two-stage, tool-calling pipeline** (why not one prompt per acquirer? because that has no
 tool use and no LLM-driven routing, just a schema-constrained wrapper around one call):
