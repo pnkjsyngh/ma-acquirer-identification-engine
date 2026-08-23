@@ -179,6 +179,64 @@ every sector pair's similarity uniformly. Verified target-sensitive: top-10 over
 default ranges 0-5/10 across the other 9 synthetic profiles, and acquirer-type mix (Strategic vs. Financial
 Sponsor) varies realistically by sector rather than sitting at a fixed ratio.
 
+How the ranking layer actually scores and ranks acquirers, target-profile centric:
+
+```mermaid
+%%{init: {'themeVariables': {'fontSize': '18px'}}}%%
+flowchart TB
+    TARGET(("Target profile"))
+
+    subgraph PERACQUIRER["Per-deal signal scoring (each signal 0 to 1)"]
+        subgraph DEPENDENT["Target-dependent"]
+            SECTOR["Sector fit"]
+            SIZE["Size fit"]
+            PROFILE["Profile fit\n(geography only)"]
+            TAG["Tag alignment"]
+        end
+        subgraph INDEPENDENT["Target-independent"]
+            RECENCY["Recency"]
+            OUTCOME["Outcome quality"]
+        end
+    end
+
+    TARGET --> SECTOR
+    TARGET --> SIZE
+    TARGET --> PROFILE
+    TARGET --> TAG
+
+    SECTOR --> DEALFIT
+    SIZE --> DEALFIT
+    PROFILE --> DEALFIT
+    TAG --> DEALFIT
+    RECENCY --> DEALFIT
+    OUTCOME --> DEALFIT
+
+    DEALFIT["Deal fit score =\nweighted sum\nof 6 signals"]
+    DEALFIT --> ROLLUP["Average this acquirer's\ndeal fit scores\n(weighted by recency x outcome)"]
+    ROLLUP --> COUNT{"Relevant deals\n>= 3?"}
+    COUNT -->|yes| FULL["Full confidence"]
+    COUNT -->|no| DAMPENED["Dampened confidence\n(relevant deals / 3)"]
+    FULL --> SCORE["Score = fit x confidence"]
+    DAMPENED --> SCORE
+    SCORE --> RANK(["Sort, take top 10"])
+
+    classDef targetNode fill:#ede7f6,stroke:#4527a0,color:#0d1b2a
+    classDef deterministicNode fill:#e8f5e9,stroke:#2e7d32,color:#0d1b2a
+    classDef gateNode fill:#fce4ec,stroke:#ad1457,color:#0d1b2a
+    classDef outputNode fill:#ede7f6,stroke:#4527a0,color:#0d1b2a
+
+    class TARGET targetNode
+    class SECTOR,SIZE,PROFILE,TAG,RECENCY,OUTCOME,DEALFIT,ROLLUP,FULL,DAMPENED,SCORE deterministicNode
+    class COUNT gateNode
+    class RANK outputNode
+
+    style DEPENDENT stroke-dasharray: 5 5
+    style INDEPENDENT stroke-dasharray: 5 5
+```
+<p align="center"><small><em>Figure 3 — Deterministic ranking: six signals combine into one deal fit score per
+deal (signal weights), deals are then grouped by acquirer and averaged (deal weights: recency x outcome), and
+the confidence dampener scales the result before sorting. Two separate weighting steps, not one.</em></small></p>
+
 **LLM synthesis is a two-stage, tool-calling pipeline** (why not one prompt per acquirer? because that has no
 tool use and no LLM-driven routing, just a schema-constrained wrapper around one call):
 
@@ -223,7 +281,7 @@ flowchart TB
     class THIN gateNode
     class T1,T2,T3,WIDEN toolNode
 ```
-<p align="center"><small><em>Figure 3 — Stage 1's loop for one acquirer (of 10, run concurrently): the model selects among three evidence tools, then conditionally widens the search using the same tool-call mechanism.</em></small></p>
+<p align="center"><small><em>Figure 4 — Stage 1's loop for one acquirer (of 10, run concurrently): the model selects among three evidence tools, then conditionally widens the search using the same tool-call mechanism.</em></small></p>
 
 ## Assumptions
 
