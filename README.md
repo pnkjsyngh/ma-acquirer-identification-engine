@@ -201,8 +201,11 @@ flowchart TB
 
 #### Non-determinism handling
 
-Every LLM call runs at zero temperature, keeping output as reproducible as the model allows. Residual run-to-run variance in the prose itself is a model property this can't fully eliminate — everything on either side of it is fully deterministic: the ranking layer that feeds it (see
-[Deterministic ranking](#deterministic-ranking) above), and the retry/validation path that catches whatever hat variance produces (see [Grounding & validation](#grounding--validation) below).
+Every LLM call runs at zero temperature, keeping output as reproducible as the model allows. Residual
+run-to-run variance in the prose itself is a model property this can't fully eliminate — everything on either
+side of it is fully deterministic: the ranking layer that feeds it (see
+[Deterministic ranking](#deterministic-ranking) above), and the retry/validation path that catches whatever
+that variance produces (see [Grounding & validation](#grounding--validation) below).
 
 #### Grounding & validation
 
