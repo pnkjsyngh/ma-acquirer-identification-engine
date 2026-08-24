@@ -11,7 +11,7 @@ The data underneath is a 500-row historical U.S. healthcare M&A transaction data
 ## Architecture
 
 #### Bird's-eye view 
-A user (via the web UI or CLI) submits a target profile, which flows through deterministic ranking and then agentic reasoning before results come back. Every agentic call is traced automatically, and a user can flag any result as relevant or not, with that feedback landing in the same trace store. From here, the sections below walk through each major component in turn: the full pipeline end to end, then deterministic ranking on its own, then the two-stage LLM synthesis pipeline in detail, then how outputs get grounded and validated before shipping, then how tracing and feedback attach to that same trace store, then the web UI's two tabs.
+A user (via the web UI or CLI) submits a target profile, which flows through deterministic ranking and then agentic reasoning before results come back. Every agentic call is traced automatically, and a user can flag any result as relevant or not, with that feedback landing in the same trace store. From here, the sections below walk through each major component in turn: the full pipeline end to end, then deterministic ranking on its own, then the two-stage LLM synthesis pipeline in detail, then how that pipeline's non-determinism is handled, then how outputs get grounded and validated before shipping, then how tracing and feedback attach to that same trace store, then the web UI's two tabs.
 
 ```mermaid
 %%{init: {'themeVariables': {'fontSize': '18px'}}}%%
@@ -199,6 +199,11 @@ flowchart TB
   follows from that fit rather than being the reason for it. It can fall back to the higher-reasoning model if
   needed. Every output it writes is checked and, if needed, repaired — see [Grounding & validation](#grounding--validation) below.
 
+#### Non-determinism handling
+
+Every LLM call runs at zero temperature, keeping output as reproducible as the model allows. Residual run-to-run variance in the prose itself is a model property this can't fully eliminate — everything on either side of it is fully deterministic: the ranking layer that feeds it (see
+[Deterministic ranking](#deterministic-ranking) above), and the retry/validation path that catches whatever hat variance produces (see [Grounding & validation](#grounding--validation) below).
+
 #### Grounding & validation
 
 Every rationale goes through two independent checks before it's accepted, both automated, neither an LLM call:
@@ -315,36 +320,6 @@ without adding a Docker dependency this prototype doesn't otherwise need.
   Open `http://localhost:8000/`. See the [Web UI](#web-ui) section under Architecture above for what the two
   tabs provide.
 
-## Assumptions
-
-- The default target profile (no `--sector`/`--deal-size-mm` given) is Healthcare Services, ~$200M EV,
-  mid-market/private/regional/strong margins, per the assessment brief.
-- "Regional" with no specific region given is treated as "any specific region is a full geography match":
-  only National/Multi-Regional deals score lower, since the target didn't rule out any particular region.
-- Tier-1 signal weights (`sector_fit` 0.30 / `size_fit` 0.25 / `profile_fit` 0.20 / `recency` 0.10 /
-  `outcome_quality` 0.10 / `tag_alignment` 0.05) and the eligibility threshold (3 relevant deals for full
-  confidence) are documented constants, chosen to be directionally sensible and checked against both the
-  [target-sensitivity results](docs/target_sensitivity.md) and the
-  [weight-sensitivity sweep](docs/weight_sensitivity.md), not fitted to any objective.
-- "Relevant" deal = `sector_fit >= 0.35`; "adjacent" (widen-eligible) = `0.15 <= sector_fit < 0.35`.
-- Conviction is rank-derived: High = rank ≤3, Medium = 4-7, Low = ≥8, a deliberate choice so conviction
-  varies across the 10 acquirers rather than clustering, per the assessment's "conviction levels should vary
-  and be defensible" guidance.
-- `days_to_close` is null in ~19% of rows (only populated for `Closed` deals, which is structural, not a data
-  quality bug) and isn't used by any ranking signal, so this doesn't affect scores.
-
-## Non-determinism handling
-
-- `temperature=0` on every LLM call, passed via `extra_body` since the current Anthropic SDK deprecated it as
-  a direct `messages.create()` parameter.
-- The ranking layer is pure and deterministic: acquirer list, order, and Conviction levels are always
-  reproducible for a given target profile.
-- LLM prose still has residual run-to-run variance at temperature 0 (a model property, not something this
-  codebase controls). `MOCK_LLM=1` substitutes deterministic canned output for a zero-key demo and for testing
-  the full pipeline, including the conditional widen path, deterministically.
-- Every rationale is validated on the way out (`RationaleOutput`, Pydantic) with one repair/retry attempt
-  before failing loudly for that acquirer, rather than silently shipping malformed output.
-
 ## Testing
 
 ```bash
@@ -356,9 +331,10 @@ see `.github/workflows/tests.yml`), covering:
 
 - The ranking/feature layer, tool schemas and dispatch, and adjacent-sector-candidate computation
   (`test_features.py`, `test_ranking.py`, `test_tools.py`).
-- The full pipeline under `MOCK_LLM=1`, including a test that specifically proves the widen-to-adjacent-sector
-  routing decision fires conditionally (not always, not never) for a real thin-evidence acquirer, not just that
-  the code path exists (`test_output.py`, `test_main.py`).
+- The full pipeline under `MOCK_LLM=1` (`test_main.py`, `test_output.py`), including a test that proves the
+  widen-to-adjacent-sector output path fires correctly for a manufactured thin-evidence acquirer
+  (`test_output.py`) — mock-mode plumbing, not the live routing decision itself, since CI never makes a real
+  API call and so never exercises Stage 1's actual tool-calling choice.
 - Grounding checks, both the "accept a real citation" and "reject a fabricated one" paths, independently at the
   `validate_rationale`/`app.grounding` level and end-to-end against real generated output (`test_output.py`,
   `test_grounding.py`), plus a near-duplicate-text check that flags suspiciously similar prose across acquirers
@@ -366,19 +342,50 @@ see `.github/workflows/tests.yml`), covering:
 - The web UI's `/rank`, `/compare`, and `/feedback` routes, and that tracing being disabled never breaks
   anything (`test_server.py`, `test_tracing.py`).
 
-## Limitations & extensions
+Server-route tests redirect all filesystem writes to `tmp_path`: the app itself never runs `pytest` against
+its own default `output/` directory, so the test suite can't clobber real generated output.
 
-What's genuinely missing today, and what it would take to close each gap. `docs/extensions.md` goes deeper
-on these and others (data/target modeling, cost/performance, quality/trust, product/platform themes) with more
-on how each would attach to the existing architecture.
+**A green run is the expected bar for merging a PR**, not an optional signal — the workflow runs on every pull
+request against `main`, and passing is treated as a precondition for merge.
+
+## Assumptions
+
+- The default target profile (no `--sector`/`--deal-size-mm` given) is Healthcare Services, ~\$200M EV, per
+  the assessment brief. Its "mid-market, private, regional, strong EBITDA margins" description only partially
+  drives scoring: deal size and geography are real signals (`size_fit`, `geography_score`), but "private" and
+  "strong margins" aren't compared against anything the target specifies — `ownership_score()` and
+  `margin_score()` score each candidate deal against fixed, dataset-wide rules, not against a target
+  preference. The same four-word description is also hardcoded into every LLM prompt (`app/prompts.py`), so a
+  custom, non-default target (e.g. a \$2B target) is still described to the model as "mid-market... strong
+  EBITDA margins" regardless of whether that's true for it.
+- "Regional" with no specific region given is treated as "any specific region is a full geography match":
+  only National/Multi-Regional deals score lower, since the target didn't rule out any particular region.
+- `thesis_tags` (feeds `tag_alignment`, the smallest weight at 0.05) defaults to a fixed
+  `["Platform Build", "Geographic Expansion", "Scale"]` and can't be overridden today, from the CLI or the web
+  UI, so every target in every sector is scored against the same three tags.
+- Tier-1 signal weights (`sector_fit` 0.30 / `size_fit` 0.25 / `profile_fit` 0.20 / `recency` 0.10 /
+  `outcome_quality` 0.10 / `tag_alignment` 0.05) and the eligibility threshold (3 relevant deals for full
+  confidence) are documented constants, chosen to be directionally sensible and checked against both the [target-sensitivity results](docs/target_sensitivity.md) and the [weight-sensitivity sweep](docs/weight_sensitivity.md), not fitted to any objective.
+- "Relevant" deal = `sector_fit >= 0.35`; "adjacent" (widen-eligible) = `0.15 <= sector_fit < 0.35`.
+- Conviction is rank-derived: High = rank ≤3, Medium = 4-7, Low = ≥8, a deliberate choice so conviction
+  varies across the 10 acquirers rather than clustering, per the assessment's "conviction levels should vary
+  and be defensible" guidance.
+- `days_to_close` is null in ~19% of rows (only populated for `Closed` deals, which is structural, not a data
+  quality bug) and isn't used by any ranking signal, so this doesn't affect scores.
+
+## Limitations
+
+Real gaps in what's built today, not roadmap items — things that are weaker than they should be. A few of
+these are elaborated further in [`docs/extensions.md`](docs/extensions.md).
 
 - **Grounding covers structured citations, not free-text prose.** `precedent_activity` and `valuation_context`
-  are checked automatically on every run (see [Grounding & validation](#grounding--validation) above). Numbers embedded in prose fields
-  (`acquirer_overview`, `risk_flags[].evidence`) aren't automatically verified. A manual spot-check (Atrium
-  Health) confirmed those traced correctly too, with one 0.1x rounding slip on an aggregate range (9.3x cited
-  vs. 9.2x actual), but that check isn't automated. A fuller citation validator extending into free text is a
-  Stretch item.
-- **Sector adjacency is a proxy** (buyer co-occurrence), not a direct measure of strategic adjacency. The IDF
+  are checked automatically on every run (see [Grounding & validation](#grounding--validation) above). Numbers
+  embedded in prose fields (`acquirer_overview`, `risk_flags[].evidence`) aren't automatically verified. A
+  manual spot-check (Atrium Health) confirmed those traced correctly too, with one 0.1x rounding slip on an
+  aggregate range (9.3x cited vs. 9.2x actual), but that check isn't automated. A fuller citation validator
+  extending into free text is a Stretch item, detailed further in [extensions documentation](docs/extensions.md).
+- **Sector adjacency is a proxy** (buyer co-occurrence), not a direct measure of strategic adjacency — and it's
+  what the widen-to-adjacent-sector decision, this system's one real routing choice, actually runs on. The IDF
   downweight sharpens it but doesn't eliminate the approximation.
 - **Wikipedia enrichment covers 70/107 acquirers**, skewed toward large PE sponsors and public strategics.
   Missing acquirers fall back to CSV-only content, no crash. A business-entity filter plus one hard-coded
@@ -386,20 +393,43 @@ on how each would attach to the existing architecture.
 - **`STAGE2_BACKEND=anthropic` (opencode-go fallback) is implemented but not live-tested.** Same call shape
   Stage 1 already uses, but hasn't itself been run against a real opencode-go outage.
 - **No closed-loop feedback.** The "Relevant"/"Not relevant" flags are trace-attached annotations (see
-  [Observability & feedback](#observability--feedback) above), not a system that changes future rankings. That fuller version, plus search-
-  augmented enrichment beyond Wikipedia, are documented as future directions in `docs/extensions.md`, not built.
-- **`WEIGHTS` (`app/features.py`) are hardcoded, not externalized to a config file, and are documented
-  assumptions rather than fitted values.** The [weight-sensitivity sweep](docs/weight_sensitivity.md) shows
-  how robust the ranking is to each weight, not that 0.30/0.25/0.20/... is objectively optimal, and changing
-  them today requires a code edit, not a config change.
+  [Observability & feedback](#observability--feedback) above), not a system that changes future rankings. That
+  fuller version, plus search-augmented enrichment beyond Wikipedia, are documented as future directions in
+  [`docs/extensions.md`](docs/extensions.md), not built.
+- **The widen-to-adjacent-sector decision isn't surfaced structurally, only in prose.** No `widened` field in
+  the output, no UI badge, nothing in the trace metadata — a reader has to infer it from the rationale text.
+  Scores for these acquirers are already dampened via the same evidence count that triggers widening, so this
+  is a transparency gap, not a hidden one. More in [extensions documentation](docs/extensions.md).
 - **No cost-per-run figure surfaced in the app or the UI.** Token usage and cost are visible per call in the
   Langfuse dashboard when tracing is enabled; the app itself doesn't retain or display an aggregate number.
-- **No MCP exposure.** This app owns both the tools and the only client, so MCP would add protocol overhead
-  with no functional benefit here; scoped out deliberately, not a gap.
-- **No container image.** `run.sh` already gives one-command, no-manual-setup execution at this scale, so
-  Docker would add a dependency rather than remove one; scoped out deliberately, not a gap. It starts to earn
-  its keep once there's a real multi-user deploy target to orchestrate (`docs/extensions.md`'s Productionizing
-  & deployment section).
 
-Server-route tests redirect all filesystem writes to `tmp_path`: the app itself never runs `pytest` against
-its own default `output/` directory, so the test suite can't clobber real generated output.
+## Extensions
+
+What this prototype would grow into with more time, framed as deliberate scope decisions rather than
+shortcomings. [Extensions documentation](docs/extensions.md) goes deeper across four themes — data/target
+modeling, cost/performance, quality/trust, product/platform — with more on how each would attach to the
+existing architecture. One representative item per theme below, plus a second on the richest one:
+
+- **Richer target attributes** (data/target modeling). The margin/ownership gap flagged in Assumptions above
+  isn't unfixable, just unbuilt: one new signal function per attribute — e.g. comparing a deal's margin against
+  what the *target* actually specified, instead of the dataset's min/max — one new `WEIGHTS` entry, renormalize.
+  Additive, not a rewrite.
+- **Result caching** (cost/performance). Every run re-executes the full pipeline, live LLM calls included,
+  even for an identical request. A cache keyed on the full target profile would cut cost significantly for
+  repeat/demo traffic; the mechanism is simple, invalidation and where it lives are the real design questions.
+- **`WEIGHTS` (`app/features.py`) are hardcoded, not externalized to a config file, and are documented
+  assumptions rather than fitted values** (also cost/performance). The
+  [weight-sensitivity sweep](docs/weight_sensitivity.md) shows how robust the ranking is to each weight, not
+  that 0.30/0.25/0.20/... is objectively optimal, and changing them today requires a code edit, not a config
+  change.
+- **Guardrails were considered and deliberately scoped narrow** (quality/trust). This app's real risk profile
+  doesn't include untrusted free-text input — target fields are structured, not open text — so general
+  prompt-injection defenses mostly aren't solving a threat that exists here. The higher-value equivalent is
+  the numeric-grounding validator already built (see [Grounding & validation](#grounding--validation) above),
+  a custom in-house addition rather than a new framework dependency.
+- **No MCP exposure** (product/platform). This app owns both the tools and the only client, so MCP would add
+  protocol overhead with no functional benefit today; scoped out deliberately, not a gap.
+- **No production deployment path** (also product/platform): no container image, no secrets manager, no rate
+  limiting or health checks. `run.sh` already gives one-command, no-manual-setup execution at this scale, so a
+  container would add a dependency rather than remove one — this starts to earn its keep once there's a real
+  multi-user deploy target to orchestrate.

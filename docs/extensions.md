@@ -29,9 +29,9 @@ dimensions a real analyst would want to express a preference on: preferred `fina
 `outcome`-quality preference, or a target `target_ownership_pre` (e.g. "comparable to other PE-backed exits").
 Each is architecturally the same shape as "Richer target attributes" above — one new signal function, one new
 `WEIGHTS` entry — so this is really that same pattern applied more broadly rather than a new mechanism. Worth
-sequencing after `WEIGHTS` is externalized to a config file (see the README's Limitations & extensions section):
-more parameters means more weights, and a growing hardcoded `WEIGHTS` dict is exactly the pressure that makes
-externalizing it worthwhile.
+sequencing after `WEIGHTS` is externalized to a config file (see "Externalize `WEIGHTS` to a config file" under
+Cost & performance below): more parameters means more weights, and a growing hardcoded `WEIGHTS` dict is
+exactly the pressure that makes externalizing it worthwhile.
 
 ## Cost & performance
 
@@ -54,6 +54,13 @@ provider pricing changes, the same tradeoff already being carried for the Stage 
 streaming variant (Server-Sent Events or WebSockets) could show each acquirer's rationale as it completes
 rather than all-or-nothing, since the 10 acquirers already run concurrently — the data is available
 progressively, it's just not surfaced that way yet.
+
+**Externalize `WEIGHTS` to a config file.** `app/features.py`'s `WEIGHTS` dict is a hardcoded Python constant
+today — directionally sensible and sensitivity-tested (see `docs/weight_sensitivity.md`), but changing any
+value means a code edit and a redeploy, not a config change. Moving it to a YAML/JSON file loaded at startup is
+mechanically simple on its own; it becomes worth doing specifically once "Broader target-profile parameter
+surface" (above) adds more weights to tune — a six-entry hardcoded dict is easy to live with, a fifteen-entry
+one is exactly the pressure that makes externalizing it worthwhile.
 
 **Weight tuning from real outcomes.** `WEIGHTS` are documented, sensitivity-tested constants (see `docs/
 weight_sensitivity.md`), not fitted to anything. If the dataset had a genuine "did this acquirer actually
