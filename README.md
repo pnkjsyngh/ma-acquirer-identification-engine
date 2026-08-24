@@ -433,3 +433,5 @@ existing architecture. One representative item per theme below, plus a second on
   limiting or health checks. `run.sh` already gives one-command, no-manual-setup execution at this scale, so a
   container would add a dependency rather than remove one — this starts to earn its keep once there's a real
   multi-user deploy target to orchestrate.
+
+- **Deal-team AI copilots (Rogo, BlueFlame)** calling this engine as a tool through the MCP exposure above, and this engine in turn calling a meeting-history tool (e.g. Fellow) as a new evidence source growth that would also be the trigger to migrate Stage 1's hand-rolled tool loop to a proper agentic harness like LangGraph. Detailed in [extensions documentation](docs/extensions.md).

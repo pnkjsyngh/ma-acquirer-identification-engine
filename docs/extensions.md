@@ -108,6 +108,15 @@ good" outputs to diff against would catch quality regressions the way `tests/tes
 top-3 assertion already catches ranking regressions — extending that same idea to rationale *content*, not
 just the acquirer list.
 
+**A meeting/engagement-history tool (e.g. Fellow).** Stage 1's evidence gathering today is three tools plus
+Wikipedia enrichment, all derived from the static CSV or a public summary — none of it reflects whether a
+banker has actually talked to this acquirer about this target. A fourth tool pulling engagement history from a
+meeting-notes platform like Fellow would be a genuinely new kind of evidence, not "did this acquirer transact
+historically" but "has anyone already had this conversation." Same mechanism as the existing three tools, one
+more entry in Stage 1's tool schema, no new pattern. It also doubles as a plausible real source for the
+outcome-engagement label "Weight tuning from real outcomes" (above) and "No closed-loop feedback" (README's
+Limitations section) both currently lack — did the acquirer take the meeting, move forward, or pass.
+
 ## Product & platform
 
 **Closed-loop feedback — built as trace-attached annotation, not a re-ranking loop.** The assessment's feedback
@@ -123,8 +132,23 @@ start and Web UI sections.
 
 **MCP tool exposure.** Wrap `rank_acquirers` and the evidence-gathering tools already built for Stage 1
 (`app/tools.py`) as MCP tools, so any MCP-compatible client could call them directly rather than only through
-this app's own CLI/web UI. Pure integration surface — doesn't change ranking correctness or output quality, so
-it was deliberately deprioritized versus everything above.
+this app's own CLI/web UI. Concrete motivation, not just "for completeness": AI copilots built for deal teams
+— Rogo and BlueFlame, both AI-native platforms for banking/investing workflows — are exactly the kind of
+client that would want to call "who are the likely acquirers for this target" as a tool rather than
+reimplement the ranking logic themselves. Pure integration surface either way — doesn't change ranking
+correctness or output quality, so it was deliberately deprioritized versus everything above.
+
+**Agentic harness migration (e.g. LangGraph).** Stage 1's tool-calling loop is intentionally hand-rolled today
+(`app/llm.py`'s `_stage1_tool_loop`) — a native Anthropic tool-use loop with one conditional branch, widen or
+don't — appropriate for a surface this small. That stops being true once the tool roster and entry points
+grow: a fourth tool (meeting-history, above) means more of what to call and when, and MCP exposure (above)
+means the same agent effectively serves two different callers — this app's own pipeline, and an external MCP
+client — which starts to want explicit state rather than a closure captured in one Python function. A
+framework like LangGraph would replace the implicit while-loop with an explicit state graph, literally the
+thing the README's Figure 4 is hand-drawing today, becoming the actual runtime instead of just documentation
+of it, and buys checkpointing/resumability and a natural human-in-the-loop seam for free. Not worth the
+complexity cost at today's one-loop, one-branch scale; worth it specifically once the surface above grows into
+it.
 
 **Real persistence layer.** Output is currently file-based (`output/<slug>/`), fine for a single-user prototype
 but not for multi-user/audit-trail needs. A real datastore (Postgres) would enable querying past runs, versioning
