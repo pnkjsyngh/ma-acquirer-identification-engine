@@ -167,7 +167,7 @@ def main() -> None:
     rank_p.add_argument("--sector")
     rank_p.add_argument("--deal-size-mm", type=float)
     rank_p.add_argument("--geography", default=None)
-    rank_p.add_argument("--top-n", type=int, default=2)
+    rank_p.add_argument("--top-n", type=int, default=10)
     rank_p.add_argument("--output-dir", default="output")
     rank_p.add_argument("--all-profiles", action="store_true", help="Run every profile in synthetic_profiles.json")
     rank_p.add_argument(
