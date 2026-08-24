@@ -19,7 +19,7 @@ def test_rank_known_profile_returns_full_rationale(tmp_path, monkeypatch):
     assert response.status_code == 200
     body = response.json()
     assert isinstance(body["elapsed_seconds"], (int, float))
-    assert len(body["acquirers"]) == 2  # matches server.py's top_n=2
+    assert len(body["acquirers"]) == 10  # matches server.py's _RANK_TOP_N
     for acquirer in body["acquirers"]:
         for section in REQUIRED_SECTIONS:
             assert section in acquirer
